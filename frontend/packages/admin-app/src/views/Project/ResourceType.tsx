@@ -103,7 +103,7 @@ function InviteModal({
                   error: (error) => {
                     return getErrorMessage(error);
                   },
-                }
+                },
               );
             }}
           >
@@ -120,12 +120,12 @@ function ResourceTypeHeader({ refresh }: Readonly<{ refresh: () => void }>) {
   const navigate = useNavigate();
 
   return (
-    <div className="flex mb-2 justify-center items-center">
-      <h2 className="text-left flex text-xl font-semibold mr-4 ">
+    <div className="flex mb-4 justify-center items-center">
+      <h2 className="text-left flex text-2xl font-semibold text-slate-800 mr-4">
         {params.resourceType}
       </h2>
       <div className="flex flex-1 justify-end">
-        <div className="pr-4">
+        <div>
           <Button
             className="ml-2 font-medium"
             buttonSize="small"
@@ -135,7 +135,7 @@ function ResourceTypeHeader({ refresh }: Readonly<{ refresh: () => void }>) {
                 generatePath("/resources/:resourceType/:id", {
                   resourceType: params.resourceType as string,
                   id: "new",
-                })
+                }),
               )
             }
           >
@@ -172,7 +172,7 @@ export default function ResourceTypeView() {
               generatePath("/resources/:resourceType/:id", {
                 resourceType: params.resourceType as string,
                 id: (row as Resource<R4, AllResourceTypes>).id as string,
-              })
+              }),
             );
           }}
           client={client}
