@@ -81,15 +81,18 @@
 
 /* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: var(--color-brand-500);
-  --ifm-color-primary-dark: var(--color-brand-600);
-  --ifm-color-primary-darker: var(--color-brand-700);
-  --ifm-color-primary-darkest: var(--color-brand-800);
+  --ifm-color-primary: var(--color-brand-600);
+  --ifm-color-primary-dark: var(--color-brand-700);
+  --ifm-color-primary-darker: var(--color-brand-800);
+  --ifm-color-primary-darkest: var(--color-brand-900);
   --ifm-color-primary-light: var(--color-brand-400);
   --ifm-color-primary-lighter: var(--color-brand-300);
   --ifm-color-primary-lightest: var(--color-brand-200);
   --ifm-code-font-size: 95%;
   --ifm-font-size-base: 85%;
+
+  --ifm-hover-overlay: var(--color-brand-100);
+
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
   background-color: var(--color-brand-50);
   font-family: var(--ifm-heading-font-family);
