@@ -1,5 +1,5 @@
 <div align="center">
-   <img src="https://raw.githubusercontent.com/HasteHealth/HasteHealth/refs/heads/main/markdown_assets/banner.svg" style="margin-left: 10px; height: 180px; width: 180px;" />
+   <img src="https://raw.githubusercontent.com/HasteHealth/HasteHealth/refs/heads/main/markdown_assets/banner.svg" style="margin-left: 10px; height: 380px; width: 380px;" />
 </div>
 
 ## Overview
