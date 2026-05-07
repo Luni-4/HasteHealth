@@ -79,15 +79,19 @@
 
 /* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: var(--color-brand-600);
-  --ifm-color-primary-dark: var(--color-brand-700);
-  --ifm-color-primary-darker: var(--color-brand-800);
-  --ifm-color-primary-darkest: var(--color-brand-900);
-  --ifm-color-primary-light: var(--color-brand-400);
-  --ifm-color-primary-lighter: var(--color-brand-300);
-  --ifm-color-primary-lightest: var(--color-brand-200);
+  /* Shift IFM primaries two steps darker for WCAG-safe contrast on white */
+  --ifm-color-primary: var(--color-brand-800);
+  --ifm-color-primary-dark: var(--color-brand-900);
+  --ifm-color-primary-darker: var(--color-brand-950);
+  --ifm-color-primary-darkest: var(--color-brand-950);
+  --ifm-color-primary-light: var(--color-brand-600);
+  --ifm-color-primary-lighter: var(--color-brand-500);
+  --ifm-color-primary-lightest: var(--color-brand-400);
+
   --ifm-code-font-size: 95%;
-  --ifm-font-size-base: 85%;
+  --ifm-font-size-base: 90%;
+  --ifm-line-height-base: 1.75;
+  --ifm-font-color-base: var(--color-brand-950);
 
   --ifm-hover-overlay: var(--color-brand-100);
 
