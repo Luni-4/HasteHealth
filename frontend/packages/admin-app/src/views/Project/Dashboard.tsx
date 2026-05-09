@@ -167,6 +167,15 @@ function SummaryStat({
   );
 }
 
+const ACCENT_CLASSES = {
+  blue: "border-l-blue-500 bg-blue-50/40",
+  emerald: "border-l-emerald-500 bg-emerald-50/40",
+  amber: "border-l-amber-500 bg-amber-50/40",
+  violet: "border-l-violet-500 bg-violet-50/40",
+  rose: "border-l-rose-500 bg-rose-50/40",
+  cyan: "border-l-cyan-500 bg-cyan-50/40",
+};
+
 function ResourceCategoryCard({
   title,
   description,
@@ -175,18 +184,12 @@ function ResourceCategoryCard({
 }: Readonly<{
   title: string;
   description: string;
-  accent: "blue" | "emerald" | "amber" | "violet" | "rose";
+  accent: keyof typeof ACCENT_CLASSES;
   resources: Array<{ resourceType: string; count?: number }>;
 }>) {
   const navigate = useNavigate();
 
-  const accentClasses = {
-    blue: "border-l-blue-500 bg-blue-50/40",
-    emerald: "border-l-emerald-500 bg-emerald-50/40",
-    amber: "border-l-amber-500 bg-amber-50/40",
-    violet: "border-l-violet-500 bg-violet-50/40",
-    rose: "border-l-rose-500 bg-rose-50/40",
-  }[accent];
+  const accentClasses = ACCENT_CLASSES[accent];
 
   const total = resources.reduce((sum, item) => sum + toNumber(item.count), 0);
 
@@ -562,7 +565,6 @@ function DashboardContent() {
             { resourceType: "Practitioner", count: counts.practitioner },
             { resourceType: "CareTeam", count: counts.careTeam },
             { resourceType: "CarePlan", count: counts.carePlan },
-            { resourceType: "Subscription", count: counts.subscription },
           ]}
         />
 
@@ -575,10 +577,6 @@ function DashboardContent() {
             {
               resourceType: "ExplanationOfBenefit",
               count: counts.explanationOfBenefit,
-            },
-            {
-              resourceType: "OperationDefinition",
-              count: counts.operationDefinition,
             },
           ]}
         />
@@ -593,7 +591,6 @@ function DashboardContent() {
               resourceType: "QuestionnaireResponse",
               count: counts.questionnaireResponse,
             },
-            { resourceType: "AuditEvent", count: counts.auditEvent },
           ]}
         />
 
@@ -607,6 +604,20 @@ function DashboardContent() {
             {
               resourceType: "ClientApplication",
               count: counts.clientApplication,
+            },
+            { resourceType: "AuditEvent", count: counts.auditEvent },
+          ]}
+        />
+
+        <ResourceCategoryCard
+          title="Configurable Artifacts"
+          description="Server behaviors and event-driven workflows defined by the project team."
+          accent="cyan"
+          resources={[
+            { resourceType: "Subscription", count: counts.subscription },
+            {
+              resourceType: "OperationDefinition",
+              count: counts.operationDefinition,
             },
           ]}
         />
@@ -666,8 +677,7 @@ function DashboardContent() {
           </div>
 
           <div className="mt-4 rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-900">
-            Insurance records tracked: {insuranceRecords.toLocaleString()} |
-            Configurable artifacts: {configurableArtifacts.toLocaleString()}
+            Insurance records tracked: {insuranceRecords.toLocaleString()}
           </div>
         </article>
       </section>
