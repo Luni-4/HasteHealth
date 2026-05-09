@@ -116,6 +116,9 @@ const config: Config = {
       logo: {
         alt: "haste.health",
         src: "img/logo_text.svg",
+        style: {
+          width: "128px",
+        },
       },
       items: [
         {
