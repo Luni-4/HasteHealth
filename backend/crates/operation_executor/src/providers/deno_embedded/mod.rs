@@ -113,7 +113,6 @@ impl ModuleLoader for TsModuleLoader {
         _maybe_referrer: Option<&ModuleLoadReferrer>,
         _options: ModuleLoadOptions,
     ) -> ModuleLoadResponse {
-        println!("Loading module: {}", module_specifier);
         fn load(module_specifier: &ModuleSpecifier) -> Result<ModuleSource, ModuleLoaderError> {
             let path = module_specifier
                 .to_file_path()
@@ -334,7 +333,7 @@ async fn run_code<
     let main_mod_id = deno_runtime
         .load_main_es_module_from_code(
             &ModuleSpecifier::parse("memo://main.ts").unwrap(),
-            "import userFunction from 'memo://user.ts'; _internal_.setReturnValue(await userFunction(_internal_.getInputValue()));"
+            "import userFunction from 'memo://user.ts'; _internal_.setReturnValue(await userFunction(await _internal_.getInputValue()));"
                 .to_string(),
         )
         .await?;

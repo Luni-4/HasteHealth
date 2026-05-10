@@ -450,23 +450,6 @@ export default function OperationDefinitionView({
     if (id === "new" && resource === undefined) {
       onChange({
         resourceType: "OperationDefinition",
-        id: "new",
-        name: "New Operation",
-        code: "new",
-        system: true,
-        type: false,
-        instance: false,
-        status: "draft",
-        kind: "operation",
-        parameter: [
-          {
-            name: "sd",
-            use: "out",
-            min: 1,
-            max: "1",
-            type: "StructureDefinition",
-          },
-        ],
         extension: [
           {
             extension: [
@@ -476,7 +459,31 @@ export default function OperationDefinitionView({
               },
             ],
             url: "https://haste.health/Extension/custom-code",
-            valueString: DEFAULT_CODE,
+            valueString:
+              "\ninterface Context {\n  request: {\n    id?: string;\n    resource?: string;\n    parameters: unknown;\n  }\n}\n\nexport default async function(context: Context) {\n  console.log(context)\n    const sd = await fhir.readResource(\"StructureDefinition\", context.request.parameters.parameter.filter(p => p.name === \"id\")[0].valueString);\n\n    return {\n        resourceType: 'Parameters',\n        parameter: [\n            {\n                name: 'sd',\n                resource: sd\n            }\n        ]\n    };\n}\n",
+          },
+        ],
+        name: "New Operation",
+        status: "draft",
+        kind: "operation",
+        code: "new",
+        system: true,
+        type: false,
+        instance: false,
+        parameter: [
+          {
+            name: "sd",
+            use: "out",
+            min: 1,
+            max: "1",
+            type: "StructureDefinition",
+          },
+          {
+            name: "id",
+            use: "in",
+            min: 1,
+            max: "1",
+            type: "string",
           },
         ],
       } as OperationDefinition);
