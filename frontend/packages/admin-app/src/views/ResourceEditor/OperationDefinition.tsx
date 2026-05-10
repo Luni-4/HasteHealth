@@ -44,6 +44,13 @@ const extensions = [
       preventDefault: true,
       run: indentLess,
     },
+    {
+      key: "Mod-s", // Mod is Ctrl on Windows/Linux and Cmd on macOS
+      run: () => {
+        // Returning true prevents the default browser save behavior
+        return true;
+      },
+    },
   ]),
 ];
 
