@@ -422,17 +422,17 @@ interface Context {
 }
 
 export default async function(context: Context) {
-    const sd = await fhir.readResource("StructureDefinition", "Patient");
+  const sd = await fhir.readResource("StructureDefinition", context.request.parameters.parameter.filter(p => p.name === "id")[0].valueString);
 
-    return {
-        resourceType: 'Parameters',
-        parameter: [
-            {
-                name: 'sd',
-                resource: sd
-            }
-        ]
-    };
+  return {
+      resourceType: 'Parameters',
+      parameter: [
+          {
+              name: 'sd',
+              resource: sd
+          }
+      ]
+  };
 }
 `;
 
@@ -459,8 +459,7 @@ export default function OperationDefinitionView({
               },
             ],
             url: "https://haste.health/Extension/custom-code",
-            valueString:
-              "\ninterface Context {\n  request: {\n    id?: string;\n    resource?: string;\n    parameters: unknown;\n  }\n}\n\nexport default async function(context: Context) {\n  console.log(context)\n    const sd = await fhir.readResource(\"StructureDefinition\", context.request.parameters.parameter.filter(p => p.name === \"id\")[0].valueString);\n\n    return {\n        resourceType: 'Parameters',\n        parameter: [\n            {\n                name: 'sd',\n                resource: sd\n            }\n        ]\n    };\n}\n",
+            valueString: DEFAULT_CODE,
           },
         ],
         name: "New Operation",
