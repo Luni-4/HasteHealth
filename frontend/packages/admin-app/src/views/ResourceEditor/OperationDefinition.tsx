@@ -32,7 +32,7 @@ import { getErrorMessage } from "../../utilities";
 
 const extensions = [
   basicSetup,
-  javascript(),
+  javascript({ typescript: true }),
   keymap.of([
     {
       key: "Tab",
@@ -50,9 +50,7 @@ const extensions = [
 function getOperationCode(operation: OperationDefinition | undefined): string {
   const code: string =
     operation?.extension?.find(
-      (e) =>
-        e.url ===
-        "https://haste-health.github.io/fhir-operation-definition/operation-code",
+      (e) => e.url === "https://haste.health/Extension/custom-code",
     )?.valueString ?? "";
   return code;
 }
@@ -201,8 +199,8 @@ function OperationCodeEditor({
           }}
         />
       </div>
-      <div className="flex justify-start space-x-4 py-2">
-        <Modal
+      <div className="flex justify-start space-x-4 py-2 px-1">
+        {/* <Modal
           modalTitle={`Deploy ${operation?.code}`}
           ModalContent={(setOpen) => (
             <DeployModal operation={operation} setOpen={setOpen} />
@@ -219,7 +217,7 @@ function OperationCodeEditor({
               Deploy
             </Button>
           )}
-        </Modal>
+        </Modal> */}
         <Modal
           modalTitle={`Invoke ${operation?.code}`}
           ModalContent={(setOpen) => (
@@ -228,7 +226,7 @@ function OperationCodeEditor({
         >
           {(setOpen) => (
             <Button
-              buttonType="secondary"
+              buttonType="primary"
               onClick={(e) => {
                 e.preventDefault();
                 setOpen(true);
@@ -407,6 +405,30 @@ const InvocationModal = ({
   );
 };
 
+const DEFAULT_CODE = `
+interface Context {
+  request: {
+    id?: string;
+    resource?: string;
+    parameters: unknown;
+  }
+}
+
+export default async function(context: Context) {
+    const sd = await fhir.readResource("StructureDefinition", "Patient");
+
+    return {
+        resourceType: 'Parameters',
+        parameter: [
+            {
+                name: 'sd',
+                resource: sd
+            }
+        ]
+    };
+}
+`;
+
 export default function OperationDefinitionView({
   id,
   resourceType,
@@ -416,6 +438,44 @@ export default function OperationDefinitionView({
   onChange,
 }: OperationEditorProps) {
   const code: string = getOperationCode(resource);
+
+  useEffect(() => {
+    if (id === "new" && resource === undefined) {
+      onChange({
+        resourceType: "OperationDefinition",
+        id: "new",
+        name: "New Operation",
+        code: "new",
+        system: true,
+        type: false,
+        instance: false,
+        status: "draft",
+        kind: "operation",
+        parameter: [
+          {
+            name: "sd",
+            use: "out",
+            min: 1,
+            max: "1",
+            type: "StructureDefinition",
+          },
+        ],
+        extension: [
+          {
+            extension: [
+              {
+                url: "https://haste.health/Extension/custom-code-type",
+                valueString: "text/typescript",
+              },
+            ],
+            url: "https://haste.health/Extension/custom-code",
+            valueString: DEFAULT_CODE,
+          },
+        ],
+      } as OperationDefinition);
+    }
+  }, [id, resource]);
+
   return (
     <ResourceEditorComponent
       id={id as id}
@@ -446,11 +506,16 @@ export default function OperationDefinitionView({
                   extension: [
                     ...(resource?.extension?.filter(
                       (e) =>
-                        e.url !==
-                        "https://haste-health.github.io/fhir-operation-definition/operation-code",
-                    ) || []),
+                        e.url !== "https://haste.health/Extension/custom-code",
+                    ) ?? []),
                     {
-                      url: "https://haste-health.github.io/fhir-operation-definition/operation-code",
+                      extension: [
+                        {
+                          url: "https://haste.health/Extension/custom-code-type",
+                          valueString: "text/typescript",
+                        },
+                      ],
+                      url: "https://haste.health/Extension/custom-code",
                       valueString: v,
                     },
                   ],
