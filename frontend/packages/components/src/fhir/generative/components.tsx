@@ -13,12 +13,16 @@ import {
   HumanName,
   Identifier,
   Meta,
+  Money,
   Period,
   Quantity,
   Range,
   Ratio,
   Reference,
   ResourceType,
+  SampledData,
+  Signature,
+  Timing,
   code,
   date,
   dateTime,
@@ -26,6 +30,7 @@ import {
   id,
   instant,
   integer,
+  markdown,
   uri,
   url,
 } from "@haste-health/fhir-types/r4/types";
@@ -254,7 +259,44 @@ const BaseTypeComponents: Record<string, TypeComponent> = {
       {...deriveSharedProps<Meta>(props)}
     />
   ),
-  // Todo [Timing, Money, Duration, MoneyQuantity, SimpleQuantity] trial [SampleData, Signature, Age, Distance]
+  Timing: (props) => (
+    <ComplexTypes.FHIRTimingEditable {...deriveSharedProps<Timing>(props)} />
+  ),
+  Money: (props) => (
+    <ComplexTypes.FHIRMoneyEditable
+      client={props.client}
+      fhirVersion={props.fhirVersion}
+      {...deriveSharedProps<Money>(props)}
+    />
+  ),
+  Duration: (props) => (
+    <ComplexTypes.FHIRSimpleQuantityEditable
+      {...deriveSharedProps<any>(props)}
+    />
+  ),
+  SampledData: (props) => (
+    <ComplexTypes.FHIRSampledDataEditable
+      {...deriveSharedProps<SampledData>(props)}
+    />
+  ),
+  Signature: (props) => (
+    <ComplexTypes.FHIRSignatureEditable
+      {...deriveSharedProps<Signature>(props)}
+      fhirVersion={props.fhirVersion}
+      client={props.client}
+    />
+  ),
+  Age: (props) => (
+    <ComplexTypes.FHIRSimpleQuantityEditable
+      {...deriveSharedProps<any>(props)}
+    />
+  ),
+  Distance: (props) => (
+    <ComplexTypes.FHIRSimpleQuantityEditable
+      {...deriveSharedProps<any>(props)}
+    />
+  ),
+  // Todo [ MoneyQuantity, SimpleQuantity] trial [SampleData, Signature ]
   // MetadataTypes review and Special Purpose Data types review.
 };
 
