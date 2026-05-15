@@ -47,6 +47,7 @@ pub struct BackboneElement {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A stream of bytes"]
@@ -65,6 +66,7 @@ pub struct FHIRBase64Binary {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "Value of \"true\" or \"false\""]
@@ -83,6 +85,7 @@ pub struct FHIRBoolean {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A URI that is a reference to a canonical URL on a FHIR resource"]
@@ -101,6 +104,7 @@ pub struct FHIRCanonical {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A string which has at least one character and no leading or trailing whitespace and where there is no whitespace other than single spaces in the contents"]
@@ -119,6 +123,7 @@ pub struct FHIRCode {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A date or partial date (e.g. just year or year + month). There is no time zone. The format is a union of the schema types gYear, gYearMonth and date.  Dates SHALL be valid dates."]
@@ -137,6 +142,7 @@ pub struct FHIRDate {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A date, date-time or partial date (e.g. just year or year + month).  If hours and minutes are specified, a time zone SHALL be populated. The format is a union of the schema types gYear, gYearMonth, date and dateTime. Seconds must be provided due to schema type constraints but may be zero-filled and may be ignored.                 Dates SHALL be valid dates."]
@@ -155,6 +161,7 @@ pub struct FHIRDateTime {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A rational number with implicit precision"]
@@ -173,6 +180,7 @@ pub struct FHIRDecimal {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "Any combination of letters, numerals, \"-\" and \".\", with a length limit of 64 characters.  (This might be an integer, an unprefixed OID, UUID or any other identifier pattern that meets these constraints.)  Ids are case-insensitive."]
@@ -191,6 +199,7 @@ pub struct FHIRId {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "An instant in time - known at least to the second"]
@@ -209,6 +218,7 @@ pub struct FHIRInstant {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A whole number"]
@@ -227,6 +237,7 @@ pub struct FHIRInteger {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A string that may contain Github Flavored Markdown syntax for optional processing by a mark down presentation engine"]
@@ -245,6 +256,7 @@ pub struct FHIRMarkdown {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "An OID represented as a URI"]
@@ -263,6 +275,7 @@ pub struct FHIROid {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "An integer with a value that is positive (e.g. >0)"]
@@ -281,6 +294,7 @@ pub struct FHIRPositiveInt {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A sequence of Unicode characters"]
@@ -299,6 +313,7 @@ pub struct FHIRString {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A time during the day, with no date specified"]
@@ -317,6 +332,7 @@ pub struct FHIRTime {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "An integer with a value that is not negative (e.g. >= 0)"]
@@ -335,6 +351,7 @@ pub struct FHIRUnsignedInt {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "String of characters used to identify a name or a resource"]
@@ -353,6 +370,7 @@ pub struct FHIRUri {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A URI that is a literal reference"]
@@ -371,6 +389,7 @@ pub struct FHIRUrl {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "A UUID, represented as a URI"]
@@ -389,6 +408,7 @@ pub struct FHIRUuid {
     Default,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    haste_fhir_serialization_json :: derive :: FHIRSerdeDeserialize,
 )]
 #[fhir_serialize_type = "primitive"]
 #[doc = "XHTML"]

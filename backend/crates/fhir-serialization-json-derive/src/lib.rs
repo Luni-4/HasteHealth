@@ -1,4 +1,5 @@
 mod deserialize;
+mod deserialize_serde;
 mod serialize;
 mod utilities;
 
@@ -94,6 +95,7 @@ enum DeserializeComplexType {
         reference
     )
 )]
+
 pub fn deserialize(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
@@ -107,6 +109,24 @@ pub fn deserialize(input: TokenStream) -> TokenStream {
         "enum-variant" => deserialize::enum_variant_deserialization(input),
         "valueset" => deserialize::deserialize_valueset(input),
         _ => panic!("Must be one of primitive, typechoice, complex or resource."),
+    };
+
+    result.into()
+}
+
+#[proc_macro_derive(
+    FHIRSerdeDeserialize,
+    attributes(fhir_serialize_type, rename_field, type_choice_variants)
+)]
+pub fn serde_deserialize(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let serialize_type = get_attribute_serialization_type(&input.attrs);
+
+    let result = match serialize_type.unwrap().as_str() {
+        "primitive" => deserialize_serde::fhir_primitive_deserialization(input),
+        "valueset" => deserialize_serde::valueset_deserialization(input),
+        _ => panic!("Only primitive and valueset supported for serde deserialization."),
     };
 
     result.into()
