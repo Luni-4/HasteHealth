@@ -29341,9 +29341,11 @@ pub struct VisionPrescription {
     Debug,
     haste_fhir_serialization_json :: derive :: FHIRJSONSerialize,
     haste_fhir_serialization_json :: derive :: FHIRJSONDeserialize,
+    serde :: Deserialize,
 )]
 #[fhir_serialize_type = "enum-variant"]
 #[determine_by = "resourceType"]
+#[serde(tag = "resourceType")]
 pub enum Resource {
     IdentityProvider(IdentityProvider),
     Membership(Membership),

@@ -1,6 +1,12 @@
 use core::panic;
 use quote::ToTokens;
-use syn::{Attribute, Expr, Lit, Meta, MetaList, Token, punctuated::Punctuated};
+use syn::{Attribute, Expr, Field, Lit, Meta, MetaList, Token, Type, punctuated::Punctuated};
+
+/// Use rename_field attribute if present else use the struct name
+pub fn get_field_name(field: &Field) -> String {
+    get_attribute_value(&field.attrs, "rename_field")
+        .unwrap_or_else(|| field.ident.as_ref().unwrap().to_string())
+}
 
 pub fn get_attribute_value(attrs: &[Attribute], attribute: &str) -> Option<String> {
     attrs.iter().find_map(|attr| match &attr.meta {
@@ -21,8 +27,60 @@ pub fn get_attribute_value(attrs: &[Attribute], attribute: &str) -> Option<Strin
     })
 }
 
+pub fn get_field_type(field: &Field) -> proc_macro2::Ident {
+    match &field.ty {
+        Type::Path(path) => path.path.segments.first().unwrap().ident.clone(),
+        _ => panic!("Unsupported field type for serialization"),
+    }
+}
+
+pub fn is_optional_field(field: &Field) -> bool {
+    let field_type = get_field_type(field);
+    if field_type == "Option" { true } else { false }
+}
+
+pub fn is_type_choice_field(field: &Field) -> bool {
+    is_attribute_present(&field.attrs, "type_choice_variants")
+}
+
 pub fn is_attribute_present(attrs: &[Attribute], attribute: &str) -> bool {
     attrs.iter().any(|attr| attr.path().is_ident(attribute))
+}
+
+pub fn get_optional_inner_type(type_: &Type) -> Option<Type> {
+    if let Type::Path(path) = type_ {
+        if let Some(inner_type) = path.path.segments.first() {
+            if inner_type.ident == "Option" {
+                if let syn::PathArguments::AngleBracketed(args) = &inner_type.arguments {
+                    if let Some(syn::GenericArgument::Type(ty)) = args.args.first() {
+                        return Some(ty.clone());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+// Should return if it's a vector even if Option<Vec<T>>
+pub fn is_vector(field: &Field) -> bool {
+    let field_type = get_field_type(field);
+    if field_type == "Vec" {
+        true
+    } else if field_type == "Option" {
+        // Check if it's an Option<Vec<T>>
+        let inner_type = get_optional_inner_type(&field.ty);
+
+        if let Some(Type::Path(path)) = inner_type {
+            if let Some(inner_type) = path.path.segments.first() {
+                return inner_type.ident == "Vec";
+            }
+        }
+
+        false
+    } else {
+        false
+    }
 }
 
 pub struct CardinalityAttribute {
