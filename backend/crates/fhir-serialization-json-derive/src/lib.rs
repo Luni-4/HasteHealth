@@ -126,6 +126,13 @@ pub fn serde_deserialize(input: TokenStream) -> TokenStream {
     let result = match serialize_type.unwrap().as_str() {
         "primitive" => deserialize_serde::fhir_primitive_deserialization(input),
         "valueset" => deserialize_serde::valueset_deserialization(input),
+        "typechoice" => deserialize_serde::typechoice_deserialization(input),
+        "complex" => {
+            deserialize_serde::complex_deserialization(input, DeserializeComplexType::Complex)
+        }
+        "resource" => {
+            deserialize_serde::complex_deserialization(input, DeserializeComplexType::Resource)
+        }
         _ => panic!("Only primitive and valueset supported for serde deserialization."),
     };
 

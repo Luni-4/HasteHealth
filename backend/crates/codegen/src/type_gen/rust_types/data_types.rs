@@ -143,7 +143,7 @@ fn get_struct_key_value(
         quote! {}
     };
 
-    let primitive_attribute = if conditionals::is_primitive(element) {
+    let primitive_attribute = if conditionals::is_primitive_element(element) {
         quote! {
         #[primitive]
         }
@@ -230,7 +230,16 @@ fn create_type_choice(
                 quote! {}
             };
 
+            let primitive_attribute = if conditionals::is_primitive_type(fhir_type) {
+                quote! {
+                    #[primitive]
+                }
+            } else {
+                quote! {}
+            };
+
             quote! {
+                #primitive_attribute
                 #target_types
                 #enum_name(#rust_type)
             }
@@ -258,7 +267,13 @@ fn create_type_choice(
 
     // haste_fhir_serialization_json::derive::FHIRJSONDeserialize
     quote! {
-        #[derive(Clone, Reflect, Debug, haste_fhir_serialization_json::derive::FHIRJSONSerialize, haste_fhir_serialization_json::derive::FHIRJSONDeserialize)]
+        #[derive(
+            Clone,
+            Reflect,
+            Debug,
+            haste_fhir_serialization_json::derive::FHIRJSONSerialize,
+            haste_fhir_serialization_json::derive::FHIRJSONDeserialize,
+            haste_fhir_serialization_json::derive::FHIRSerdeDeserialize)]
         #[fhir_serialize_type = "typechoice"]
         #[type_choice_field_name = #field_name]
         pub enum #type_name {
@@ -318,12 +333,27 @@ fn create_complex_struct(
         }
     } else if conditionals::is_root(sd, element) && conditionals::is_resource_sd(sd) {
         quote! {
-            #[derive(Clone, Reflect, Debug, Default, haste_fhir_serialization_json::derive::FHIRJSONSerialize, haste_fhir_serialization_json::derive::FHIRJSONDeserialize)]
+            #[derive(
+                Clone,
+                Reflect,
+                Debug,
+                Default,
+                haste_fhir_serialization_json::derive::FHIRJSONSerialize,
+                haste_fhir_serialization_json::derive::FHIRJSONDeserialize,
+                haste_fhir_serialization_json::derive::FHIRSerdeDeserialize
+            )]
             #[fhir_serialize_type = "resource"]
         }
     } else {
         quote! {
-            #[derive(Clone, Reflect, Debug, Default, haste_fhir_serialization_json::derive::FHIRJSONSerialize, haste_fhir_serialization_json::derive::FHIRJSONDeserialize)]
+            #[derive(
+                Clone,
+                Reflect,
+                Debug,
+                Default,
+                haste_fhir_serialization_json::derive::FHIRJSONSerialize,
+                haste_fhir_serialization_json::derive::FHIRJSONDeserialize,
+                haste_fhir_serialization_json::derive::FHIRSerdeDeserialize)]
             #[fhir_serialize_type = "complex"]
         }
     };
