@@ -137,7 +137,8 @@ wrk --latency -s crates/server/benchmarks/transaction.lua -t10 -c10 -d10s http:/
 
 #### M3 Macbook Air Local 10 threads Postgres 18
 
-| Latency (percentile:time)       | Requests per Second                                        | Concurrent connections | Benchmark                                        |
-| ------------------------------- | ---------------------------------------------------------- | ---------------------- | ------------------------------------------------ |
-| 50%:1.2ms, 90%:1.8ms, 99%:3.38  | 9401                                                       | 10                     | backend/crates/server/benchmarks/observation.lua |
-| 50%:60ms, 90%:73ms, 99%:288.6ms | 201 (100 resources per transaction) (20100 total requests) | 10                     | backend/crates/server/benchmarks/transaction.lua |
+| Latency (percentile:time)                           | Requests per Second                                      | Concurrent connections | Benchmark                                                   |
+| --------------------------------------------------- | -------------------------------------------------------- | ---------------------- | ----------------------------------------------------------- |
+| 50%:1.2ms, 90%:1.8ms, 99%:3.38                      | 10344                                                    | 10                     | backend/crates/server/benchmarks/observation.lua            |
+| 50%:60ms, 90%:73ms, 99%:288.6ms                     | 251 (100 resources per transaction) (25100 total writes) | 10                     | backend/crates/server/benchmarks/transaction.lua            |
+| 50%:116.73ms 75%:118.39ms 90%:121.45ms 99%:246.90ms | 325 (100 reads per batch) (32500 total reads)            | 10                     | backend/crates/server/benchmarks/observation_batch_read.lua |

@@ -40,7 +40,7 @@ const architectureSteps = [
 
 const outcomeStats = [
   { value: "<10ms", label: "Create and update latency" },
-  { value: "20k/s", label: "Resource throughput (10 threads)" },
+  { value: ">25k/s", label: "Writes per second (10 threads)" },
   { value: "<50ms", label: "Typical search response" },
   { value: "<100MB", label: "Single-instance memory footprint" },
 ];
@@ -197,8 +197,9 @@ export default function Home(): ReactNode {
             ))}
           </div>
           <p className="mt-4 text-sm text-slate-600">
-            Throughput benchmark based on 10-thread testing with a
-            Synthea-generated dataset.
+            Write benchmarks exceeded 25k writes per second on 10 threads and
+            32k writes per second on 10 threads with a Synthea-generated
+            dataset.
           </p>
         </section>
 
