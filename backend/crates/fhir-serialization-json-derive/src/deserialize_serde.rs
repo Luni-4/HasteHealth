@@ -678,38 +678,34 @@ pub fn complex_deserialization(
                 }
             }
 
-            // let bind_fields = data.fields.iter().map(|field| {
-            //     let field_ident = field.ident.as_ref().unwrap();
-            //     let field_name = get_field_name(field);
-            //     let value_ident = format_ident!("__{}_value", field_ident);
-            //     if is_optional_field(field) {
-            //         quote! { let #field_ident = #value_ident.and_then(|v| v); }
-            //     } else {
-            //         quote! {
-            //             let #field_ident = #value_ident
-            //                 .ok_or_else(|| serde::de::Error::missing_field(#field_name))?;
-            //         }
-            //     }
-            // });
+            let bind_fields = field_meta.iter().map(|field| {
+                let field_name = field.field_name.as_str();
+                let field_ident = &field.ident;
+                let value_ident = value_ident(field_ident);
 
-            // let field_names = data.fields.iter().map(|f| f.ident.as_ref().unwrap());
-
-            // #(#bind_fields)*
-
-            // Ok(#name {
-            //     #(#field_names),*
-            // })
-
-            let required_resource_check =
-                if deserialize_complex_type == DeserializeComplexType::Resource {
-                    quote! {
-                        if !#seen_resource_type_ident {
-                            return Err(serde::de::Error::missing_field("resourceType"));
-                        }
-                    }
+                if field.is_optional {
+                    quote! { let #field_ident = #value_ident.and_then(|v| v); }
                 } else {
-                    quote! {}
-                };
+                    quote! {
+                        let #field_ident = #value_ident
+                            .ok_or_else(|| serde::de::Error::missing_field(#field_name))?;
+                    }
+                }
+            });
+
+            let field_names = data.fields.iter().map(|f| f.ident.as_ref().unwrap());
+
+            // Temp disabling because tag removes the field. Can add this back when I alter Resource enum to not remove the field.
+            // let required_resource_check =
+            //     if deserialize_complex_type == DeserializeComplexType::Resource {
+            //         quote! {
+            //             if !#seen_resource_type_ident {
+            //                 return Err(serde::de::Error::missing_field("resourceType"));
+            //             }
+            //         }
+            //     } else {
+            //         quote! {}
+            //     };
 
             let deserialize_impl = quote! {
                 impl<'de> serde::Deserialize<'de> for #name {
@@ -742,9 +738,14 @@ pub fn complex_deserialization(
                                 #(#typechoice_merge_blocks)*
 
 
-                                #required_resource_check
 
-                                todo!("Not implemented.")
+
+
+                                #(#bind_fields)*
+
+                                Ok(#name {
+                                    #(#field_names),*
+                                })
                             }
                         }
 
@@ -753,9 +754,9 @@ pub fn complex_deserialization(
                 }
             };
 
-            if name == "IdentityProviderOidcClient" {
-                println!("{}", deserialize_impl.to_string());
-            }
+            // if name == "IdentityProviderOidcClient" {
+            //     println!("{}", deserialize_impl.to_string());
+            // }
 
             deserialize_impl.into()
         }
