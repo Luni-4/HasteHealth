@@ -1,11 +1,15 @@
-use crate::{DeserializeComplexType, utilities::{ get_attribute_value, get_cardinality_attributes, get_field_name, get_field_type, get_type_choice_attribute, is_attribute_present, is_optional_field, is_type_choice_field}};
+use crate::{
+    DeserializeComplexType,
+    utilities::{
+        get_attribute_value, get_cardinality_attributes, get_field_name, get_field_type,
+        get_type_choice_attribute, is_attribute_present, is_optional_field, is_type_choice_field,
+    },
+};
 use core::panic;
 
 use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::{Data, DeriveInput, Field, Fields, Ident};
-
-
 
 fn unwrap_and_validate_cardinality_field(
     field: &Field,
@@ -41,8 +45,10 @@ pub fn fhir_primitive_deserialization(input: DeriveInput) -> TokenStream {
 
             let value_type = get_field_type(value_field_found.unwrap());
 
-            let unwrap_required =
-                unwrap_and_validate_cardinality_field(value_field_found.unwrap(), format_ident!("value"));
+            let unwrap_required = unwrap_and_validate_cardinality_field(
+                value_field_found.unwrap(),
+                format_ident!("value"),
+            );
 
             let expanded = quote! {
                 impl FHIRJSONDeserializer for #name {
@@ -100,8 +106,8 @@ pub fn fhir_primitive_deserialization(input: DeriveInput) -> TokenStream {
 }
 
 pub fn deserialize_valueset(input: DeriveInput) -> TokenStream {
-   let name = input.ident;
-   match input.data {
+    let name = input.ident;
+    match input.data {
         Data::Enum(data) => {
             let variants_deserialize_value = data.variants.iter().filter_map(|variant| {
                 let variant_name = variant.ident.to_owned();
@@ -115,17 +121,18 @@ pub fn deserialize_valueset(input: DeriveInput) -> TokenStream {
                 }
             });
 
-            let variants_deserialize_value_with_element = data.variants.iter().filter_map(|variant| {
-                let variant_name = variant.ident.to_owned();
-                let code = get_attribute_value(&variant.attrs, "code");
-                if let Some(code) = code {
-                    Some(quote! {
-                        #code =>  Ok(#name::#variant_name(element))
-                    })
-                } else {
-                    None
-                }
-            });
+            let variants_deserialize_value_with_element =
+                data.variants.iter().filter_map(|variant| {
+                    let variant_name = variant.ident.to_owned();
+                    let code = get_attribute_value(&variant.attrs, "code");
+                    if let Some(code) = code {
+                        Some(quote! {
+                            #code =>  Ok(#name::#variant_name(element))
+                        })
+                    } else {
+                        None
+                    }
+                });
 
             let expanded: TokenStream = quote! {
                 impl haste_fhir_serialization_json::FHIRJSONDeserializer for #name {
@@ -189,7 +196,7 @@ pub fn deserialize_valueset(input: DeriveInput) -> TokenStream {
 
             expanded.into()
         }
-         _ => panic!("Value set serialization only works for enums"),
+        _ => panic!("Value set serialization only works for enums"),
     }
 }
 
@@ -199,7 +206,7 @@ pub fn deserialize_valueset(input: DeriveInput) -> TokenStream {
 /// Additionally no guarantees around the reference targets instead a true implementation would require a resolution
 /// to resolve target and verify it's type.
 #[allow(unused)]
-fn reference_validator(targets: &Vec<String>, reference_id: &Ident) -> TokenStream{
+fn reference_validator(targets: &Vec<String>, reference_id: &Ident) -> TokenStream {
     if targets.len() == 0 {
         quote! {}
     } else {
@@ -222,7 +229,6 @@ pub fn deserialize_typechoice(input: DeriveInput) -> TokenStream {
 
     match input.data {
         Data::Enum(data) => {
-
             let serialize_by_name_matches = data.variants.iter().map(|variant| {
                 let name = variant.ident.to_owned();
                 let field_name = format!("{}{}", typechoice_name, name);
@@ -271,15 +277,12 @@ pub fn deserialize_typechoice(input: DeriveInput) -> TokenStream {
                 }
             };
 
-
             // println!("{}", expanded.to_string());
             expanded.into()
         }
         _ => panic!("Only enums can be deserialized for typechoice serializer."),
     }
 }
-
-
 
 fn create_primitive_struct_handler(
     found_fields_variable: &Ident,
@@ -359,12 +362,21 @@ fn create_complex_struct_handler(
     }
 }
 
-
-fn set_struct_field(found_fields_variable: &Ident, obj_variable: &Ident, field_variable: &Ident, field: &Field) -> TokenStream {
+fn set_struct_field(
+    found_fields_variable: &Ident,
+    obj_variable: &Ident,
+    field_variable: &Ident,
+    field: &Field,
+) -> TokenStream {
     let struct_set = if is_attribute_present(&field.attrs, "primitive") {
         create_primitive_struct_handler(found_fields_variable, obj_variable, field_variable, field)
     } else if is_type_choice_field(field) {
-        create_type_choice_struct_handler(found_fields_variable, obj_variable, field_variable, field)
+        create_type_choice_struct_handler(
+            found_fields_variable,
+            obj_variable,
+            field_variable,
+            field,
+        )
     } else {
         create_complex_struct_handler(found_fields_variable, obj_variable, field_variable, field)
     };
@@ -373,7 +385,7 @@ fn set_struct_field(found_fields_variable: &Ident, obj_variable: &Ident, field_v
 }
 
 fn instantiate_struct_with_required_cardinality_checks(fields: &Fields) -> TokenStream {
-    let mut field_instantiation = quote !{};
+    let mut field_instantiation = quote! {};
 
     for field in fields {
         let cardinality = get_cardinality_attributes(&field.attrs);
@@ -381,7 +393,7 @@ fn instantiate_struct_with_required_cardinality_checks(fields: &Fields) -> Token
         let field_name_str = field_name.to_string();
 
         if is_optional_field(field) {
-            field_instantiation = quote!{#field_instantiation
+            field_instantiation = quote! {#field_instantiation
                 let #field_name =  #field_name.and_then(|v| v);
             }
         }
@@ -389,14 +401,14 @@ fn instantiate_struct_with_required_cardinality_checks(fields: &Fields) -> Token
         if let Some(cardinality) = cardinality {
             let mut conditions = vec![];
             if let Some(min) = cardinality.min {
-                conditions.push(quote!{ #field_name.len() < #min });
+                conditions.push(quote! { #field_name.len() < #min });
             }
             if let Some(max) = cardinality.max {
-                conditions.push(quote!{ #field_name.len() > #max })
+                conditions.push(quote! { #field_name.len() > #max })
             };
 
-            field_instantiation =  quote! {#field_instantiation
-                if let Some(#field_name) = #field_name.as_ref() && (#(#conditions)||*) {    
+            field_instantiation = quote! {#field_instantiation
+                if let Some(#field_name) = #field_name.as_ref() && (#(#conditions)||*) {
                     return Err(haste_fhir_serialization_json::errors::DeserializeError::CardinalityViolation(
                         #field_name_str.to_string()
                     ));
@@ -405,7 +417,7 @@ fn instantiate_struct_with_required_cardinality_checks(fields: &Fields) -> Token
         }
 
         if !is_optional_field(field) {
-            field_instantiation = quote!{#field_instantiation
+            field_instantiation = quote! {#field_instantiation
                 let #field_name = #field_name.ok_or_else(|| {
                     haste_fhir_serialization_json::errors::DeserializeError::MissingRequiredField(
                         #field_name_str.to_string()
@@ -414,7 +426,6 @@ fn instantiate_struct_with_required_cardinality_checks(fields: &Fields) -> Token
             }
         }
     }
-
 
     let field_idents = fields.iter().map(|field| {
         let field_name = field.ident.as_ref().unwrap();
@@ -430,7 +441,10 @@ fn instantiate_struct_with_required_cardinality_checks(fields: &Fields) -> Token
     }
 }
 
-pub fn deserialize_complex(input: DeriveInput, deserialize_complex_type: DeserializeComplexType) -> TokenStream {
+pub fn deserialize_complex(
+    input: DeriveInput,
+    deserialize_complex_type: DeserializeComplexType,
+) -> TokenStream {
     let name = input.ident;
     let name_string = name.to_string();
 
@@ -462,21 +476,20 @@ pub fn deserialize_complex(input: DeriveInput, deserialize_complex_type: Deseria
                                         resource_type.to_string(),
                                     ));
                                 }
-                        } 
+                        }
                         else {
                             return Err(haste_fhir_serialization_json::errors::DeserializeError::MissingRequiredField("resourceType".to_string()));
                         }
                     }
-                },
+                }
                 DeserializeComplexType::Complex => {
-                    quote!{}
+                    quote! {}
                 }
             };
-            
-            let set_value = data
-                .fields
-                .iter()
-                .map(|field| set_struct_field(&found_fields_ident, &obj_variable, &field_variable, field));
+
+            let set_value = data.fields.iter().map(|field| {
+                set_struct_field(&found_fields_ident, &obj_variable, &field_variable, field)
+            });
 
             let return_val = instantiate_struct_with_required_cardinality_checks(&data.fields);
 
@@ -542,8 +555,6 @@ pub fn deserialize_complex(input: DeriveInput, deserialize_complex_type: Deseria
     }
 }
 
-
-
 pub fn enum_variant_deserialization(input: DeriveInput) -> TokenStream {
     let name = input.ident;
     let determine_by = get_attribute_value(&input.attrs, "determine_by").unwrap();
@@ -565,7 +576,7 @@ pub fn enum_variant_deserialization(input: DeriveInput) -> TokenStream {
                 }
             });
 
-            let expanded = quote!{
+            let expanded = quote! {
                 impl haste_fhir_serialization_json::FHIRJSONDeserializer for #name {
                     fn from_json_str(s: &str) -> Result<Self, haste_fhir_serialization_json::errors::DeserializeError> {
                         let mut json = serde_json::from_str(s)?;
@@ -592,7 +603,7 @@ pub fn enum_variant_deserialization(input: DeriveInput) -> TokenStream {
                                 field => Err(haste_fhir_serialization_json::errors::DeserializeError::InvalidEnumVariant(
                                     #determine_by.to_string(), field.to_string()
                                 )),
-                            }                            
+                            }
                         } else {
                             Err(haste_fhir_serialization_json::errors::DeserializeError::MissingRequiredField(
                                 #determine_by.to_string(),

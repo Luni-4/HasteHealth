@@ -2,7 +2,8 @@ use haste_fhir_model::r4::generated::resources::ResourceType;
 use proc_macro::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    parse_macro_input, Attribute, Data, DeriveInput, Expr, Field, Fields, Lit, Meta, PathArguments, PathSegment, Type
+    Attribute, Data, DeriveInput, Expr, Field, Fields, Lit, Meta, PathArguments, PathSegment, Type,
+    parse_macro_input,
 };
 
 fn get_attribute_value(attrs: &[Attribute], attribute: &str) -> Option<String> {
@@ -25,7 +26,11 @@ fn get_attribute_value(attrs: &[Attribute], attribute: &str) -> Option<String> {
 }
 
 fn get_parameter_name(field: &Field) -> String {
-    if let Some(rename) = get_attribute_value(&field.attrs, "parameter_rename") { rename } else { field.ident.as_ref().unwrap().to_string() }
+    if let Some(rename) = get_attribute_value(&field.attrs, "parameter_rename") {
+        rename
+    } else {
+        field.ident.as_ref().unwrap().to_string()
+    }
 }
 
 fn is_nested_parameter(attrs: &[Attribute]) -> bool {
@@ -91,7 +96,6 @@ fn is_optional(field: &Field) -> bool {
     }
 }
 
-
 fn is_resource_type(field: &Field) -> bool {
     let field_type = inner_type(field).ident;
 
@@ -104,7 +108,6 @@ fn is_resource_type(field: &Field) -> bool {
 }
 
 fn build_return_value(fields: &Fields) -> proc_macro2::TokenStream {
-    
     let field_setters = fields.iter().map(|field| {
         let optional = is_optional(field);
         let field = field.ident.as_ref().unwrap();
@@ -230,14 +233,12 @@ pub fn haste_to_parameters(input: TokenStream) -> TokenStream {
                 }
             };
 
-           // println!("{}", try_from_code.to_string());
+            // println!("{}", try_from_code.to_string());
             try_from_code.into()
-
         }
         _ => panic!("From parameter deriviation is only supported for structs."),
     }
 }
-
 
 #[proc_macro_derive(FromParameters, attributes(parameter_rename, parameter_nested))]
 pub fn haste_from_parameters(input: TokenStream) -> TokenStream {
@@ -353,7 +354,7 @@ pub fn haste_from_parameters(input: TokenStream) -> TokenStream {
                     }
                 }
             };
-            
+
             try_from_code.into()
         }
         _ => panic!("From parameter deriviation is only supported for structs."),

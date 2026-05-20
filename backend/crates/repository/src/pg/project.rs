@@ -2,14 +2,14 @@ use crate::{
     admin::TenantAuthAdmin,
     pg::{PGConnection, StoreError},
     types::{
-        SupportedFHIRVersions, 
+        SupportedFHIRVersions,
         project::{CreateProject, Project, ProjectSearchClaims},
     },
     utilities::{generate_id, validate_id},
 };
-use haste_jwt::{ProjectId, TenantId};
 use haste_fhir_model::r4::generated::terminology::IssueType;
 use haste_fhir_operation_error::OperationOutcomeError;
+use haste_jwt::{ProjectId, TenantId};
 use sqlx::{Acquire, Postgres, QueryBuilder};
 
 fn create_project<'a, 'c, Connection: Acquire<'c, Database = Postgres> + Send + 'a>(
@@ -85,7 +85,10 @@ fn delete_project<'a, 'c, Connection: Acquire<'c, Database = Postgres> + Send + 
         if !_deleted_project.is_some() {
             return Err(OperationOutcomeError::error(
                 IssueType::NotFound(None),
-                format!("Project '{}' not found or is system created and cannot be deleted.", id),
+                format!(
+                    "Project '{}' not found or is system created and cannot be deleted.",
+                    id
+                ),
             ));
         }
 
@@ -100,9 +103,8 @@ fn search_project<'a, 'c, Connection: Acquire<'c, Database = Postgres> + Send + 
 ) -> impl Future<Output = Result<Vec<Project>, OperationOutcomeError>> + Send + 'a {
     async move {
         let mut conn = connection.acquire().await.map_err(StoreError::SQLXError)?;
-        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            r#"SELECT tenant, id, fhir_version FROM projects WHERE "#,
-        );
+        let mut query_builder: QueryBuilder<Postgres> =
+            QueryBuilder::new(r#"SELECT tenant, id, fhir_version FROM projects WHERE "#);
 
         let mut and_clauses = query_builder.separated(" AND ");
 
@@ -146,17 +148,20 @@ fn update_project<'a, 'c, Connection: Acquire<'c, Database = Postgres> + Send + 
     model: Project,
 ) -> impl Future<Output = Result<Project, OperationOutcomeError>> + Send + 'a {
     async move {
-        read_project(connection, tenant, model.id.as_ref()).await?
+        read_project(connection, tenant, model.id.as_ref())
+            .await?
             .ok_or_else(|| {
                 OperationOutcomeError::error(
                     IssueType::NotFound(None),
                     format!("Project '{}' not found.", model.id.as_ref()),
                 )
-            } )
+            })
     }
 }
 
-impl<Key: AsRef<str> + Send + Sync> TenantAuthAdmin<CreateProject, Project, ProjectSearchClaims, Project, Key> for PGConnection {
+impl<Key: AsRef<str> + Send + Sync>
+    TenantAuthAdmin<CreateProject, Project, ProjectSearchClaims, Project, Key> for PGConnection
+{
     async fn create(
         &self,
         tenant: &TenantId,

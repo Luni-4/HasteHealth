@@ -1,7 +1,8 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    parse_macro_input, punctuated::Punctuated, Attribute, Data, DeriveInput, Expr, Ident, Lit, Meta, MetaList, Token, Type, Variant
+    Attribute, Data, DeriveInput, Expr, Ident, Lit, Meta, MetaList, Token, Type, Variant,
+    parse_macro_input, punctuated::Punctuated,
 };
 
 static FATAL: &str = "fatal";
@@ -235,26 +236,31 @@ struct FromInformation {
 /// Returns the argument identifier for the from variant.
 /// This should be an error.
 fn get_from_error(v: &Variant) -> Option<FromInformation> {
-    let from_fields: Vec<FromInformation> = v.fields.iter().enumerate().filter_map(|(i, field)| {
-        let from_attr = field.attrs.iter().find(|attr|{
-            let p = attr.path().is_ident("from");
-            p
-        });
+    let from_fields: Vec<FromInformation> = v
+        .fields
+        .iter()
+        .enumerate()
+        .filter_map(|(i, field)| {
+            let from_attr = field.attrs.iter().find(|attr| {
+                let p = attr.path().is_ident("from");
+                p
+            });
 
-        if from_attr.is_some() {
             if from_attr.is_some() {
-                Some(FromInformation {
-                    variant: v.clone(),
-                    from: i,
-                    error_type: field.ty.clone()
-                })
+                if from_attr.is_some() {
+                    Some(FromInformation {
+                        variant: v.clone(),
+                        from: i,
+                        error_type: field.ty.clone(),
+                    })
+                } else {
+                    panic!("Expected a named field with 'from' attribute");
+                }
             } else {
-                panic!("Expected a named field with 'from' attribute");
+                None
             }
-        } else {
-            None
-        }
-    }).collect();
+        })
+        .collect();
 
     if from_fields.len() > 1 {
         panic!("Expected only one field with 'from' attribute");
@@ -263,25 +269,26 @@ fn get_from_error(v: &Variant) -> Option<FromInformation> {
     from_fields.get(0).cloned()
 }
 
-
-
 /// Instantiate the arguments for the variant
 /// This is used in formatting the error message.
 /// Format is arg0, arg1, arg2, ...
-fn instantiate_args( v: &Variant) -> proc_macro2::TokenStream {
-    let arg_identifiers = (0..v.fields.len()).map(|i| get_arg_identifier(i)).collect::<Vec<_>>();
+fn instantiate_args(v: &Variant) -> proc_macro2::TokenStream {
+    let arg_identifiers = (0..v.fields.len())
+        .map(|i| get_arg_identifier(i))
+        .collect::<Vec<_>>();
     if arg_identifiers.is_empty() {
-        quote!{}
-    }
-    else {
+        quote! {}
+    } else {
         quote! {
             (#(#arg_identifiers),*)
         }
     }
 }
 
-
-#[proc_macro_derive(OperationOutcomeError, attributes(fatal, error, warning, information, from))]
+#[proc_macro_derive(
+    OperationOutcomeError,
+    attributes(fatal, error, warning, information, from)
+)]
 pub fn operation_error(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let input = parse_macro_input!(input as DeriveInput);
@@ -330,7 +337,6 @@ pub fn operation_error(input: TokenStream) -> TokenStream {
                     }
                 }
             });
-
 
             let expanded = quote! {
                 impl From<#name> for haste_fhir_operation_error::OperationOutcomeError {
