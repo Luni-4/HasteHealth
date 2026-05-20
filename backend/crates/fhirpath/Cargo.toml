@@ -14,14 +14,14 @@ haste-reflect = { path = "../reflect", version = "0.*" }
 haste-reflect-derive = { path = "../reflect-derive", version = "0.*" }
 peg = "0.8.5"
 thiserror = "2.0.18"
-tokio = { workspace = true, features =["sync"] }
+tokio = { workspace = true, features = ["sync"] }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["async_tokio"] }
 haste-fhir-serialization-json = { path = "../fhir-serialization-json", version = "0.*" }
 insta = "1.47.2"
+serde_json = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
-serde_json = { workspace= true}
 
 [[bench]]
 name = "fp_performance"

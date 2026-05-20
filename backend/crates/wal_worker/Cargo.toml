@@ -21,8 +21,8 @@ haste-fhir-serialization-json = { path = "../fhir-serialization-json", version =
 haste-fhirpath = { path = "../fhirpath", version = "0.*" }
 haste-jwt = { path = "../jwt", version = "0.*" }
 haste-repository = { path = "../repository", version = "0.*" }
+serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio"] }
 sqlx-postgres = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
-serde_json = { workspace = true }
