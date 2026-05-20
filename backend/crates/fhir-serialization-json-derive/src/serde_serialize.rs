@@ -1,10 +1,13 @@
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{Data, DeriveInput};
 
 use crate::{
     DeserializeComplexType,
-    utilities::{get_attribute_value, is_attribute_present, is_optional_field},
+    utilities::{
+        TypeInformation, get_attribute_value, is_attribute_present, is_optional_field,
+        process_field,
+    },
 };
 
 fn extension_derive() -> proc_macro2::TokenStream {
@@ -68,6 +71,7 @@ pub fn fhir_primitive_serialization(input: DeriveInput) -> TokenStream {
                         if !self.value.#function_to_check_empty {
                             serializer.serialize_entry(field_name, &self.value)?;
                         }
+
                         if self.extension.is_some() || self.id.is_some() {
                             let element_key = format!("_{}", field_name);
 
@@ -84,12 +88,6 @@ pub fn fhir_primitive_serialization(input: DeriveInput) -> TokenStream {
                     }
 
                     pub fn serialize_as_vector<M: serde::ser::SerializeMap>(field_name: &str, values: &[Box<Self>], serializer: &mut M) -> Result<(), M::Error> {
-                        let value_array: Vec<_> = values.iter().map(|v| &v.value).collect();
-
-                        if value_array.iter().any(|v| !v.#function_to_check_empty) {
-                            serializer.serialize_entry(field_name, &value_array)?;
-                        }
-
                         let has_extensions = values.iter().any(|item| item.extension.is_some() || item.id.is_some());
 
                         if has_extensions {
@@ -112,6 +110,14 @@ pub fn fhir_primitive_serialization(input: DeriveInput) -> TokenStream {
                             serializer.serialize_entry(&element_key, &extension_serializations)?;
                         }
 
+                        let value_array: Vec<_> = values.iter().map(|v| &v.value).collect();
+
+                        if value_array.iter().any(|v| !v.#function_to_check_empty) {
+                            serializer.serialize_entry(field_name, &value_array)?;
+                        }
+
+
+
                         Ok(())
                     }
                 }
@@ -129,21 +135,85 @@ pub fn fhir_primitive_serialization(input: DeriveInput) -> TokenStream {
 
 pub fn complex_serialization(
     input: DeriveInput,
-    _deserialize_complex_type: DeserializeComplexType,
+    deserialize_complex_type: DeserializeComplexType,
 ) -> TokenStream {
     let name = input.ident;
+    let name_string = name.to_string();
     match input.data {
-        Data::Struct(_data) => {
+        Data::Struct(data) => {
+            let field_information = data.fields.iter().map(process_field).collect::<Vec<_>>();
+            let map_serializer = format_ident!("___serializer");
+
+            let serialize_resourcetype =
+                if deserialize_complex_type == DeserializeComplexType::Resource {
+                    quote! {
+                        #map_serializer.serialize_entry("resourceType", #name_string)?;
+                    }
+                } else {
+                    quote! {}
+                };
+
+            let instantiation_serialize = field_information.iter().map(|field| {
+                let field_ident = &field.ident;
+                let field_name = &field.field_name;
+                let field_type = &field.field_type;
+
+                let serialize_field = match field.type_info {
+                    TypeInformation::Primitive => {
+                        if field.is_vector {
+                            quote!{
+                                #field_type::serialize_as_vector(#field_name, #field_ident.as_slice(), &mut #map_serializer)?;
+                            }
+                        } else {
+                            quote!{
+                                #field_ident.serialize_as_field(#field_name, &mut #map_serializer)?;
+                            }
+                        }
+                    }
+                    TypeInformation::Complex => {
+                        quote! {
+                            #map_serializer.serialize_entry(#field_name, #field_ident)?;
+                        }
+                    }
+                    TypeInformation::TypeChoice(_) => {
+                        quote! {
+                            #field_ident.serialize_as_field(#field_name, &mut #map_serializer)?;
+                        }
+                    }
+                };
+
+                if field.is_optional {
+                    quote! {
+                        if let Some(#field_ident) = &self.#field_ident {
+                            #serialize_field
+                        }
+                    }
+                } else {
+                    quote! {
+                        let #field_ident = &self.#field_ident;
+                        #serialize_field
+                    }
+                }
+            });
+
             let serialize = quote! {
                 impl serde::Serialize for #name {
                     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                     where
                         S: serde::Serializer,
                     {
-                        todo!();
+                        use serde::ser::SerializeMap;
+                        let mut #map_serializer = serializer.serialize_map(None)?;
+                        #serialize_resourcetype
+                        #(#instantiation_serialize)*
+                        #map_serializer.end()
                     }
                 }
             };
+
+            // if name.to_string() == "ExampleScenario" {
+            //     println!("{}", serialize.to_string());
+            // }
 
             serialize.into()
         }
@@ -187,8 +257,8 @@ pub fn valueset_serialization(input: DeriveInput) -> TokenStream {
                         Ok(())
                     }
 
-                    pub fn serialize_as_vector<M: serde::ser::SerializeMap>(field_name: &str, values: &[Self], serializer: &mut M) -> Result<(), M::Error> {
-                        let value_array: Vec<Option<String>> = values.iter().map(|v| v.into()).collect();
+                    pub fn serialize_as_vector<M: serde::ser::SerializeMap>(field_name: &str, values: &[Box<Self>], serializer: &mut M) -> Result<(), M::Error> {
+                        let value_array: Vec<Option<String>> = values.iter().map(|v| v.as_ref().into()).collect();
                         let element_array: Vec<Option<_>> = values.iter().map(|v| v.element()).collect();
 
                         if value_array.iter().any(|v| v.is_some()) {
@@ -250,5 +320,35 @@ pub fn typechoice_serialization(input: DeriveInput) -> TokenStream {
             serialize.into()
         }
         _ => panic!("Typechoice must be enums."),
+    }
+}
+
+pub fn enum_variant_serialization(input: DeriveInput) -> TokenStream {
+    let name = input.ident;
+    match input.data {
+        Data::Enum(data) => {
+            let serialize_field_variants = data.variants.iter().map(|v| {
+                let variant_name = &v.ident;
+                quote! {
+                    #name::#variant_name(v) => v.serialize(serializer),
+                }
+            });
+
+            let serialize = quote! {
+                impl serde::Serialize for #name {
+                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                    where
+                        S: serde::Serializer,
+                    {
+                        match self {
+                            #(#serialize_field_variants)*
+                        }
+                    }
+                }
+            };
+
+            serialize.into()
+        }
+        _ => panic!("Enum variants must be enums."),
     }
 }

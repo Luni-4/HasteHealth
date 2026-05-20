@@ -142,6 +142,11 @@ mod tests {
             "{\"resourceType\":\"Practitioner\",\"id\":\"example\",\"text\":{\"status\":\"generated\",\"div\":\"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\">\\n      <p>Dr Adam Careful is a Referring Practitioner for Acme Hospital from 1-Jan 2012 to 31-Mar\\n        2012</p>\\n    </div>\"},\"identifier\":[{\"system\":\"http://www.acme.org/practitioners\",\"value\":\"23\"}],\"active\":true,\"name\":[{\"family\":\"Careful\",\"given\":[\"Adam\"],\"prefix\":[\"Dr\"]}],\"address\":[{\"use\":\"home\",\"line\":[\"534 Erewhon St\"],\"city\":\"PleasantVille\",\"state\":\"Vic\",\"postalCode\":\"3999\"}],\"qualification\":[{\"identifier\":[{\"system\":\"http://example.org/UniversityIdentifier\",\"value\":\"12345\"}],\"code\":{\"coding\":[{\"system\":\"http://terminology.hl7.org/CodeSystem/v2-0360/2.7\",\"code\":\"BS\",\"display\":\"Bachelor of Science\"}],\"text\":\"Bachelor of Science\"},\"period\":{\"start\":\"1995\"},\"issuer\":{\"display\":\"Example University\"}}]}",
             haste_fhir_serialization_json::to_string(resource.as_ref().unwrap()).unwrap()
         );
+
+        assert_eq!(
+            serde_json::to_string(resource.as_ref().unwrap()).unwrap(),
+            haste_fhir_serialization_json::to_string(resource.as_ref().unwrap()).unwrap()
+        );
     }
 
     #[test]
@@ -387,11 +392,20 @@ mod tests {
             k,
             haste_fhir_serialization_json::to_string(patient.as_ref().unwrap()).unwrap(),
         );
+        assert_eq!(
+            haste_fhir_serialization_json::to_string(patient.as_ref().unwrap()).unwrap(),
+            serde_json::to_string(patient.as_ref().unwrap()).unwrap()
+        );
 
         let patient2 = serde_json::from_str::<Patient>(k).unwrap();
         assert_eq!(
             haste_fhir_serialization_json::to_string(&patient2).unwrap(),
             k
+        );
+
+        assert_eq!(
+            haste_fhir_serialization_json::to_string(&patient2).unwrap(),
+            serde_json::to_string(&patient2).unwrap()
         );
     }
 
@@ -439,6 +453,11 @@ mod tests {
             haste_fhir_serialization_json::to_string(&patient).unwrap(),
             "{\"resourceType\":\"Patient\",\"name\":[{\"family\":\"Doe\",\"_given\":[null,{\"id\":\"given-2\"}],\"given\":[\"John\",\"A.\"],\"prefix\":[\"Mr.\"]}]}"
         );
+
+        assert_eq!(
+            haste_fhir_serialization_json::to_string(&patient).unwrap(),
+            serde_json::to_string(&patient).unwrap()
+        );
     }
 
     #[test]
@@ -468,6 +487,11 @@ mod tests {
         assert_eq!(
             haste_fhir_serialization_json::to_string(&patient).unwrap(),
             "{\"resourceType\":\"Patient\",\"name\":[{\"family\":\"Doe\",\"_given\":[null,{\"id\":\"given-2\"}],\"given\":[\"John\",null],\"prefix\":[\"Mr.\"]}]}"
+        );
+
+        assert_eq!(
+            haste_fhir_serialization_json::to_string(&patient).unwrap(),
+            serde_json::to_string(&patient).unwrap()
         );
     }
 
