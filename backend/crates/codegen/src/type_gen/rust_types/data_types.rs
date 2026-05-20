@@ -270,7 +270,6 @@ fn create_type_choice(
             Clone,
             Reflect,
             Debug,
-            haste_fhir_serialization_json::derive::FHIRJSONSerialize,
             haste_fhir_serialization_json::derive::FHIRSerdeSerialize,
             haste_fhir_serialization_json::derive::FHIRSerdeDeserialize)]
         #[fhir_serialize_type = "typechoice"]
@@ -337,7 +336,6 @@ fn create_complex_struct(
 
         quote! {
            #[derive(Clone, Reflect, Debug, Default,
-                haste_fhir_serialization_json::derive::FHIRJSONSerialize,
                 haste_fhir_serialization_json::derive::FHIRSerdeSerialize,
                 haste_fhir_serialization_json::derive::FHIRSerdeDeserialize)]
            #[fhir_serialize_type = "primitive"]
@@ -349,7 +347,6 @@ fn create_complex_struct(
                 Reflect,
                 Debug,
                 Default,
-                haste_fhir_serialization_json::derive::FHIRJSONSerialize,
                 haste_fhir_serialization_json::derive::FHIRSerdeSerialize,
                 haste_fhir_serialization_json::derive::FHIRSerdeDeserialize
             )]
@@ -362,7 +359,6 @@ fn create_complex_struct(
                 Reflect,
                 Debug,
                 Default,
-                haste_fhir_serialization_json::derive::FHIRJSONSerialize,
                 haste_fhir_serialization_json::derive::FHIRSerdeSerialize,
                 haste_fhir_serialization_json::derive::FHIRSerdeDeserialize)]
             #[fhir_serialize_type = "complex"]
@@ -479,7 +475,7 @@ fn generate_resource_type(resource_types: &Vec<String>) -> TokenStream {
         let resource_type = format_ident!("{}", generate::capitalize(resource_name));
 
         quote! {
-            ResourceType::#resource_type => Ok(Resource::#resource_type(haste_fhir_serialization_json::from_str::<#resource_type>(data)?)),
+            ResourceType::#resource_type => Ok(Resource::#resource_type(serde_json::from_str::<#resource_type>(data)?)),
         }
     });
 
@@ -597,7 +593,6 @@ pub fn generate(
         use self::super::terminology;
         use haste_reflect::{derive::Reflect, MetaValue};
         use haste_fhir_serialization_json;
-        use std::io::Write;
         use thiserror::Error;
     };
 
@@ -608,7 +603,6 @@ pub fn generate(
         use self::super::terminology;
         use haste_reflect::{derive::Reflect, MetaValue};
         use haste_fhir_serialization_json;
-        use std::io::Write;
     };
 
     let mut rust_type_name_to_fhir_type: BTreeMap<String, String> = BTreeMap::new();
@@ -693,7 +687,6 @@ pub fn generate(
             Clone,
             Reflect,
             Debug,
-            haste_fhir_serialization_json::derive::FHIRJSONSerialize,
             haste_fhir_serialization_json::derive::FHIRSerdeSerialize,
             serde::Deserialize,
         )]
