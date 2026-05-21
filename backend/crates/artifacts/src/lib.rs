@@ -1,6 +1,6 @@
 use haste_fhir_model::r4::generated::resources::{Resource, SearchParameter};
 use rust_embed::Embed;
-use std::sync::LazyLock;
+use std::{collections::HashMap, sync::LazyLock};
 
 fn flatten_if_bundle(resource: Resource) -> Vec<Box<Resource>> {
     match resource {
@@ -15,17 +15,35 @@ fn flatten_if_bundle(resource: Resource) -> Vec<Box<Resource>> {
 }
 
 fn load_resources() -> Vec<Box<Resource>> {
-    let mut resources = vec![];
+    let mut resources = HashMap::new();
 
     for path in EmbededResourceAssets::iter() {
         let data = EmbededResourceAssets::get(path.as_ref()).unwrap();
         let resource = serde_json::from_str::<Resource>(str::from_utf8(&data.data).unwrap())
             .expect("Failed to parse artifact parameters JSON");
 
-        resources.extend(flatten_if_bundle(resource));
+        flatten_if_bundle(resource).into_iter().for_each(|r| {
+            let resource_type = r.resource_type();
+            let id = r.id().clone().unwrap_or_else(|| {
+                panic!("Resource in '{}' does not have an ID", path.as_ref());
+            });
+
+            let key = (resource_type, id);
+
+            if resources.contains_key(&key) {
+                println!(
+                    "Duplicate resource ID '{}' '{}' found in '{}'",
+                    &key.0.as_ref(),
+                    &key.1,
+                    path.as_ref()
+                );
+            }
+
+            resources.insert(key, r);
+        });
     }
 
-    resources
+    resources.into_values().collect()
 }
 
 #[derive(Embed)]

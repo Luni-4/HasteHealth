@@ -104,18 +104,66 @@ pub fn get_resource_type(resource: &Resource) -> ResourceType {
     }
 }
 
-pub async fn load_artifacts(
+/// This deletes existing artifacts and then reloads them. In a single transaction.
+pub async fn reset_artifacts(
     config: Arc<dyn Config<ServerEnvironmentVariables>>,
 ) -> Result<(), OperationOutcomeError> {
     let services = create_services(config.clone()).await?;
 
-    let ctx = Arc::new(ServerCTX::system(
-        TenantId::System,
-        ProjectId::System,
-        services.fhir_client.clone(),
-        services.rate_limit.clone(),
-    ));
+    let transaction = services.transaction().await?;
 
+    {
+        let ctx = Arc::new(ServerCTX::system(
+            TenantId::System,
+            ProjectId::System,
+            transaction.fhir_client.clone(),
+            transaction.rate_limit.clone(),
+        ));
+
+        tracing::info!("Deleting existing CodeSystems");
+        ctx.client
+            .delete_type(
+                ctx.clone(),
+                ResourceType::CodeSystem,
+                ParsedParameters::new(vec![]),
+            )
+            .await?;
+        tracing::info!("Deleting existing ValueSets");
+        ctx.client
+            .delete_type(
+                ctx.clone(),
+                ResourceType::ValueSet,
+                ParsedParameters::new(vec![]),
+            )
+            .await?;
+        tracing::info!("Deleting existing StructureDefinitions");
+        ctx.client
+            .delete_type(
+                ctx.clone(),
+                ResourceType::StructureDefinition,
+                ParsedParameters::new(vec![]),
+            )
+            .await?;
+        tracing::info!("Deleting existing SearchParameters");
+        ctx.client
+            .delete_type(
+                ctx.clone(),
+                ResourceType::SearchParameter,
+                ParsedParameters::new(vec![]),
+            )
+            .await?;
+        _load_artifacts(ctx.clone()).await?;
+    }
+
+    transaction.commit().await?;
+
+    Ok(())
+}
+
+// Used for both reloading artifacts and reset.
+async fn _load_artifacts<Client: FHIRClient<Arc<ServerCTX<Client>>, OperationOutcomeError>>(
+    ctx: Arc<ServerCTX<Client>>,
+) -> Result<(), OperationOutcomeError> {
     let mut hashes = HashSet::new();
 
     for resource in ARTIFACT_RESOURCES.iter() {
@@ -134,8 +182,8 @@ pub async fn load_artifacts(
 
                 add_hash_tag(&mut resource, sha_hash.clone());
 
-                let res = services
-                    .fhir_client
+                let res = ctx
+                    .client
                     .conditional_update(
                         ctx.clone(),
                         resource_type.clone(),
@@ -203,6 +251,21 @@ pub async fn load_artifacts(
     Ok(())
 }
 
+pub async fn load_artifacts(
+    config: Arc<dyn Config<ServerEnvironmentVariables>>,
+) -> Result<(), OperationOutcomeError> {
+    let services = create_services(config.clone()).await?;
+
+    let ctx = Arc::new(ServerCTX::system(
+        TenantId::System,
+        ProjectId::System,
+        services.fhir_client.clone(),
+        services.rate_limit.clone(),
+    ));
+
+    _load_artifacts(ctx.clone()).await
+}
+
 pub async fn get_all_sds<Repo: Repository, Search: SearchEngine>(
     kinds: &[&str],
     repo: &Repo,
@@ -243,7 +306,9 @@ pub async fn get_all_sds<Repo: Repository, Search: SearchEngine>(
             &TenantId::System,
             &ProjectId::System,
             &SearchRequest::Type(sd_search),
-            Some(SearchOptions { count_limit: false }),
+            Some(SearchOptions {
+                count_limit: Some(10_000),
+            }),
         )
         .await?;
 
@@ -284,7 +349,9 @@ pub async fn get_all_sps<Repo: Repository, Search: SearchEngine>(
             &TenantId::System,
             &ProjectId::System,
             &SearchRequest::Type(sp_search),
-            Some(SearchOptions { count_limit: false }),
+            Some(SearchOptions {
+                count_limit: Some(10_000),
+            }),
         )
         .await?;
 
