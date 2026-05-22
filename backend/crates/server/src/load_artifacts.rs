@@ -221,7 +221,7 @@ async fn _load_artifacts<Client: FHIRClient<Arc<ServerCTX<Client>>, OperationOut
 
                     match err.outcome().issue[0].code.as_ref() {
                         IssueType::Invalid(_) => {
-                            tracing::error!("BACKTRACE: {}", err.backtrace().unwrap());
+                            tracing::error!("{:#?}", err);
                             panic!("INVALID");
                         }
                         _ => {
