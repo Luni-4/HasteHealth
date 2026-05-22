@@ -65,6 +65,7 @@ services:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=elastic
       - ELASTICSEARCH_PASSWORD=elastic
+      - API_URI=http://localhost:3000
 
   hastehealth-server:
     image: ghcr.io/hastehealth/hastehealth/hastehealth:latest
