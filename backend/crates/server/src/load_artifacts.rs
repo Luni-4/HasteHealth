@@ -224,6 +224,9 @@ async fn _load_artifacts<Client: FHIRClient<Arc<ServerCTX<Client>>, OperationOut
                             tracing::error!("{:#?}", err);
                             panic!("INVALID");
                         }
+                        IssueType::Conflict(None) => {
+                            // Ignore.
+                        }
                         _ => {
                             tracing::error!(
                                 "Failed to update '{}' with id '{}'. Issue code: '{:?}', diagnostic: '{}'",
