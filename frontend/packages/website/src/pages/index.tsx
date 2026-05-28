@@ -219,8 +219,7 @@ export default function Home(): ReactNode {
           </div>
           <p className="mt-4 text-sm text-slate-600">
             Write benchmarks exceeded 25k writes per second on 10 threads and
-            32k writes per second on 10 threads with a Synthea-generated
-            dataset.
+            32k reads per second on 10 threads with a Synthea-generated dataset.
           </p>
         </section>
 
