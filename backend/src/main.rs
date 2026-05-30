@@ -7,7 +7,13 @@ use clap::{Parser, Subcommand};
 use haste_config::{ConfigType, get_config};
 use haste_fhir_operation_error::OperationOutcomeError;
 use haste_server::auth_n::oidc::routes::discovery::WellKnownDiscoveryDocument;
+use opentelemetry::trace::TracerProvider as _;
+use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
+use opentelemetry_sdk::trace::SdkTracerProvider;
 use tokio::sync::Mutex;
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, registry::Registry};
+use tracing_tree::HierarchicalLayer;
 
 use crate::commands::config::{CLIConfiguration, load_config};
 
@@ -103,15 +109,64 @@ impl From<CLIEnvironmentVariables> for String {
     }
 }
 
+struct OTelProviders {
+    _tracer_provider: SdkTracerProvider,
+    _logger_provider: SdkLoggerProvider,
+}
+
+#[allow(dead_code)]
+fn otel_subscriber() -> OTelProviders {
+    let logger_provider = SdkLoggerProvider::builder()
+        .with_simple_exporter(opentelemetry_stdout::LogExporter::default())
+        .build();
+
+    let tracer_provider = SdkTracerProvider::builder()
+        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+        .build();
+    let tracer = tracer_provider.tracer("haste-health");
+
+    // Export tracing spans through OpenTelemetry.
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+    // Export tracing events as OpenTelemetry logs through the SDK logger provider.
+    let otel_logs = OpenTelemetryTracingBridge::new(&logger_provider);
+
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+    // Use the tracing subscriber `Registry`, or any other subscriber
+    // that impls `LookupSpan`
+    let subscriber = Registry::default()
+        .with(telemetry)
+        .with(otel_logs)
+        .with(env_filter);
+
+    tracing::subscriber::set_global_default(subscriber).unwrap();
+
+    OTelProviders {
+        _tracer_provider: tracer_provider,
+        _logger_provider: logger_provider,
+    }
+}
+
+#[allow(dead_code)]
+fn tree_subscriber() -> impl tracing::Subscriber {
+    let subscriber = Registry::default()
+        .with(HierarchicalLayer::new(2))
+        .with(EnvFilter::from_default_env());
+    subscriber
+}
+
 fn main() -> Result<(), OperationOutcomeError> {
-    tracing_subscriber::fmt::init();
+    // Set up tracing with a tree subscriber in debug builds for better visibility during development,
+    // and OpenTelemetry in release builds for production monitoring.
+    #[cfg(debug_assertions)]
+    tracing::subscriber::set_global_default(tree_subscriber()).unwrap();
+    #[cfg(not(debug_assertions))]
+    let _otel_provider = otel_subscriber();
+
     let cli = Cli::parse();
     let config = CLI_STATE.clone();
     let env = get_config(ConfigType::Environment);
     let sentry_location = env.get(CLIEnvironmentVariables::SentryDSN);
-
-    // let subscriber = tracing_subscriber::FmtSubscriber::new();
-    // tracing::subscriber::set_global_default(subscriber).unwrap();
 
     let _guard = sentry::init((
         sentry_location.unwrap_or_default(),
