@@ -232,7 +232,8 @@ fn setup_tracing(
         .get(CLIEnvironmentVariables::LogType)
         .unwrap_or("JSON".to_string());
 
-    let subscriber = Registry::default().with(EnvFilter::from_default_env());
+    let subscriber = Registry::default()
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")));
 
     match log_type.as_str() {
         "TREE" => Ok(inject_otel_subscriber(
