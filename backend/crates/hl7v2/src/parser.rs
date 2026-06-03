@@ -1,56 +1,13 @@
+use haste_fhir_model::r4::generated::resources::{
+    HL7V2, HL7V2Header, HL7V2Segments, HL7V2SegmentsFields, HL7V2SegmentsFieldsValue,
+    HL7V2SegmentsFieldsValueValue,
+};
 use haste_fhir_model::r4::generated::terminology::IssueType;
 use haste_fhir_operation_error::OperationOutcomeError;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Component {
-    pub value: Option<String>,
-    pub subcomponents: Option<Vec<String>>,
-}
+pub struct ParsedHL7V2Header(pub HL7V2Header);
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct FieldValue {
-    pub value: Option<Component>,
-    pub components: Option<Vec<Component>>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Field {
-    pub value: Option<FieldValue>,
-    pub repetitions: Option<Vec<FieldValue>>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Segment {
-    pub id: String,
-    pub fields: Vec<Field>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct MessageHeader {
-    field_separator: char,
-    /// component separator, repetition separator, escape character, and subcomponent separator
-    encoding_characters: String,
-    sending_application: Option<String>,
-    sending_facility: Option<String>,
-    receiving_application: Option<String>,
-    receiving_facility: Option<String>,
-    datetime_of_message: Option<String>,
-    security: Option<String>,
-    message_type: Option<String>,
-    message_control_id: Option<String>,
-    processing_id: Option<String>,
-    version_id: Option<String>,
-
-    additional_fields: Vec<Field>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Hl7V2Message {
-    pub header: MessageHeader,
-    pub segments: Vec<Segment>,
-}
-
-impl TryFrom<&str> for MessageHeader {
+impl TryFrom<&str> for ParsedHL7V2Header {
     type Error = OperationOutcomeError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -70,59 +27,75 @@ impl TryFrom<&str> for MessageHeader {
 
         let mut fields = value[4..].split(field_separator);
 
-        Ok(MessageHeader {
-            field_separator: field_separator,
-            encoding_characters: fields
-                .next()
-                .ok_or_else(|| {
-                    OperationOutcomeError::error(
-                        IssueType::Exception(None),
-                        "Missing encoding characters".to_string(),
-                    )
-                })?
-                .to_string(),
-            sending_application: fields.next().map(|s| s.to_string()),
-            sending_facility: fields.next().map(|s| s.to_string()),
-            receiving_application: fields.next().map(|s| s.to_string()),
-            receiving_facility: fields.next().map(|s| s.to_string()),
-            datetime_of_message: (fields.next().map(|s| s.to_string())),
-            security: fields.next().map(|s| s.to_string()),
-            message_type: fields.next().map(|s| s.to_string()),
-            message_control_id: fields.next().map(|s| s.to_string()),
-            processing_id: fields.next().map(|s| s.to_string()),
-            version_id: fields.next().map(|s| s.to_string()),
-            additional_fields: fields
-                .map(|f| Field {
-                    value: Some(FieldValue {
-                        value: Some(Component {
-                            value: Some(f.to_string()),
-                            subcomponents: None,
+        Ok(ParsedHL7V2Header(HL7V2Header {
+            field_separator: Box::new(field_separator.to_string().into()),
+            encodingCharacters: Box::new(
+                fields
+                    .next()
+                    .ok_or_else(|| {
+                        OperationOutcomeError::error(
+                            IssueType::Exception(None),
+                            "Missing encoding characters".to_string(),
+                        )
+                    })?
+                    .to_string()
+                    .into(),
+            ),
+            sendingApplication: fields.next().map(|s| Box::new(s.to_string().into())),
+            sendingFacility: fields.next().map(|s| Box::new(s.to_string().into())),
+            receivingApplication: fields.next().map(|s| Box::new(s.to_string().into())),
+            receivingFacility: fields.next().map(|s| Box::new(s.to_string().into())),
+            datetimeOfMessage: fields.next().map(|s| Box::new(s.to_string().into())),
+            security: fields.next().map(|s| Box::new(s.to_string().into())),
+            messageType: fields.next().map(|s| Box::new(s.to_string().into())),
+            messageControlId: fields.next().map(|s| Box::new(s.to_string().into())),
+            processingId: fields.next().map(|s| Box::new(s.to_string().into())),
+            versionId: fields.next().map(|s| Box::new(s.to_string().into())),
+            additionalFields: Some(
+                fields
+                    .map(|f| HL7V2SegmentsFields {
+                        value: Some(HL7V2SegmentsFieldsValue {
+                            value: Some(HL7V2SegmentsFieldsValueValue {
+                                value: Some(Box::new(f.to_string().into())),
+                                subcomponents: None,
+                            }),
+                            components: None,
                         }),
-                        components: None,
-                    }),
-                    repetitions: None,
-                })
-                .collect(),
-        })
+                        repetitions: None,
+                    })
+                    .collect(),
+            ),
+        }))
     }
 }
 
-impl TryFrom<&str> for Hl7V2Message {
+pub struct ParsedHL7V2Message(pub HL7V2);
+
+impl TryFrom<&str> for ParsedHL7V2Message {
     type Error = OperationOutcomeError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let mut segments = vec![];
         let mut segment_lines = value.lines();
 
-        let message_header = MessageHeader::try_from(segment_lines.next().ok_or_else(|| {
-            OperationOutcomeError::error(
-                IssueType::Invalid(None),
-                "Missing MSH segment".to_string(),
-            )
-        })?)?;
+        let message_header =
+            ParsedHL7V2Header::try_from(segment_lines.next().ok_or_else(|| {
+                OperationOutcomeError::error(
+                    IssueType::Invalid(None),
+                    "Missing MSH segment".to_string(),
+                )
+            })?)?
+            .0;
 
         for segment in segment_lines {
-            let mut segment = segment.split(message_header.field_separator);
+            let mut segment = segment.split(
+                message_header
+                    .field_separator
+                    .value
+                    .as_ref()
+                    .and_then(|s| s.chars().next())
+                    .unwrap_or('|'),
+            );
             let segment_id = segment.next().ok_or_else(|| {
                 OperationOutcomeError::error(
                     IssueType::Exception(None),
@@ -134,81 +107,88 @@ impl TryFrom<&str> for Hl7V2Message {
                 let fields = field
                     .split(
                         message_header
-                            .encoding_characters
-                            .chars()
-                            .nth(1)
+                            .encodingCharacters
+                            .value
+                            .as_ref()
+                            .and_then(|s| s.chars().nth(1))
                             .unwrap_or('~'),
                     )
                     .map(|field| {
                         let components = field
                             .split(
                                 message_header
-                                    .encoding_characters
-                                    .chars()
-                                    .nth(0)
+                                    .encodingCharacters
+                                    .value
+                                    .as_ref()
+                                    .and_then(|s| s.chars().nth(0))
                                     .unwrap_or('^'),
                             )
                             .map(|component| {
                                 let subcomponent = component
                                     .split(
                                         message_header
-                                            .encoding_characters
-                                            .chars()
-                                            .nth(3)
+                                            .encodingCharacters
+                                            .value
+                                            .as_ref()
+                                            .and_then(|s| s.chars().nth(3))
                                             .unwrap_or('&'),
                                     )
                                     .collect::<Vec<_>>();
                                 if subcomponent.len() > 1 {
-                                    Component {
+                                    HL7V2SegmentsFieldsValueValue {
                                         value: None,
                                         subcomponents: Some(
-                                            subcomponent.iter().map(|s| s.to_string()).collect(),
+                                            subcomponent
+                                                .iter()
+                                                .map(|s| Box::new(s.to_string().into()))
+                                                .collect(),
                                         ),
                                     }
                                 } else {
-                                    Component {
-                                        value: Some(component.to_string()),
+                                    HL7V2SegmentsFieldsValueValue {
+                                        value: Some(Box::new(component.to_string().into())),
                                         subcomponents: None,
                                     }
                                 }
                             })
                             .collect::<Vec<_>>();
                         if components.len() > 1 {
-                            FieldValue {
+                            HL7V2SegmentsFieldsValue {
                                 value: None,
                                 components: Some(components),
                             }
                         } else {
-                            FieldValue {
-                                value: Some(components.into_iter().next().unwrap()),
+                            HL7V2SegmentsFieldsValue {
+                                value: components.into_iter().next(),
                                 components: None,
                             }
                         }
                     })
                     .collect::<Vec<_>>();
                 if fields.len() > 1 {
-                    Field {
+                    HL7V2SegmentsFields {
                         value: None,
                         repetitions: Some(fields),
                     }
                 } else {
-                    Field {
+                    HL7V2SegmentsFields {
                         value: Some(fields.into_iter().next().unwrap()),
                         repetitions: None,
                     }
                 }
             });
 
-            segments.push(Segment {
-                id: segment_id.to_string(),
-                fields: segment_fields.collect(),
+            segments.push(HL7V2Segments {
+                id: Box::new(segment_id.to_string().into()),
+                fields: Some(segment_fields.collect()),
             });
         }
 
-        Ok(Hl7V2Message {
+        Ok(ParsedHL7V2Message(HL7V2 {
             header: message_header,
-            segments,
-        })
+            segments: Some(segments),
+            ..Default::default()
+        }))
     }
 }
 
@@ -220,38 +200,39 @@ mod tests {
     fn test_parse_hl7v2_message() {
         let input = std::fs::read_to_string("./test_data/message1.bin").unwrap();
 
-        let result = Hl7V2Message::try_from(input.as_str());
+        let result = ParsedHL7V2Message::try_from(input.as_str());
 
         assert!(result.is_ok());
 
-        let message = result.unwrap();
-        assert_eq!(message.segments.len(), 7);
+        let message = result.unwrap().0;
+        let segments = message.segments.expect("message should contain segments");
+        assert_eq!(segments.len(), 7);
 
-        assert_eq!(message.segments[0].id, "SCH");
-        assert_eq!(message.segments[0].fields.len(), 25);
+        assert_eq!(segments[0].id.value.as_deref(), Some("SCH"));
+
+        let sch_fields = segments[0]
+            .fields
+            .clone()
+            .expect("SCH should contain fields");
+        assert_eq!(sch_fields.len(), 25);
         assert_eq!(
-            message.segments[0].fields[0]
+            sch_fields[0]
                 .value
                 .clone()
                 .unwrap()
-                .components,
-            Some(vec![
-                Component {
-                    value: Some("10345".to_string()),
-                    subcomponents: None,
-                },
-                Component {
-                    value: Some("10345".to_string()),
-                    subcomponents: None,
-                },
-            ])
+                .components
+                .unwrap()
+                .into_iter()
+                .map(|c| c.value.unwrap().value.unwrap())
+                .collect::<Vec<_>>(),
+            vec!["10345".to_string(), "10345".to_string()]
         );
 
-        assert_eq!(message.segments[1].id, "PID");
-        assert_eq!(message.segments[2].id, "PV1");
-        assert_eq!(message.segments[3].id, "RGS");
-        assert_eq!(message.segments[4].id, "AIG");
-        assert_eq!(message.segments[5].id, "AIL");
-        assert_eq!(message.segments[6].id, "AIP");
+        assert_eq!(segments[1].id.value.as_deref(), Some("PID"));
+        assert_eq!(segments[2].id.value.as_deref(), Some("PV1"));
+        assert_eq!(segments[3].id.value.as_deref(), Some("RGS"));
+        assert_eq!(segments[4].id.value.as_deref(), Some("AIG"));
+        assert_eq!(segments[5].id.value.as_deref(), Some("AIL"));
+        assert_eq!(segments[6].id.value.as_deref(), Some("AIP"));
     }
 }
