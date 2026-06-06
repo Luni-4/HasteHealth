@@ -295,6 +295,7 @@ fn filter_by_type<'a>(type_name: &str, context: &Context<'a>) -> Context<'a> {
 }
 
 #[derive(Debug, Reflect)]
+#[fhir_type = "Element"]
 struct Reflection {
     name: String,
 }
@@ -993,16 +994,19 @@ mod tests {
     use haste_reflect_derive::Reflect;
 
     #[derive(Reflect, Debug)]
+    #[fhir_type = "BackboneElement"]
     struct C {
         c: String,
     }
 
     #[derive(Reflect, Debug)]
+    #[fhir_type = "BackboneElement"]
     struct B {
         b: Vec<Box<C>>,
     }
 
     #[derive(Reflect, Debug)]
+    #[fhir_type = "BackboneElement"]
     struct A {
         a: Vec<Box<B>>,
     }
