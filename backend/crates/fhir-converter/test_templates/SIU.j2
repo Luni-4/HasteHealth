@@ -17,6 +17,12 @@
       },
       "resource": {
         "resourceType": "Patient",
+            "name" : [
+                {
+                    "family" : "{{ hl7v2.PID[0][4][0] }}",
+                    "given" : [ "{{ hl7v2.PID[0][4][1] }}" ]
+                }
+            ],
             "identifier": [
                 {
                     "use": "usual",
