@@ -624,4 +624,17 @@ mod tests {
 
         assert_eq!(patient.name.is_none(), true);
     }
+
+    #[test]
+    fn test_empty_fields() {
+        let patient = r#"{
+            "id": "",
+            "resourceType": "Patient",
+            "name": [{"family": "", "given": [""], "prefix": [""]}]
+        }"#;
+
+        let patient = serde_json::from_str::<Patient>(patient);
+
+        assert_eq!(patient.is_err(), true);
+    }
 }

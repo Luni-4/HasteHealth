@@ -6,9 +6,41 @@ use crate::{
     DeserializeComplexType,
     utilities::{
         CardinalityAttribute, FieldInformation, TypeInformation, get_attribute_value,
-        get_field_type, get_inner_type_if_optional, is_attribute_present, process_field,
+        get_field_type, get_inner_type_if_optional, is_attribute_present, is_optional_field,
+        is_type_string, process_field,
     },
 };
+
+fn fhir_primitive_value_deserialization(
+    value_field_found: &syn::Field,
+) -> proc_macro2::TokenStream {
+    let is_optional = is_optional_field(&value_field_found);
+    let value_type = get_field_type(&value_field_found);
+
+    // Empty String should be treated as None. Special handling for this case.
+    // For cases where value is required (ie non optional) we should error if value is empty string.
+    if is_type_string(&value_field_found.ty) {
+        if is_optional {
+            quote! {
+               let value = Option::<String>::deserialize(deserializer)?;
+               let value = if let Some(v) = value.as_ref() && v.is_empty() {
+                  None
+               } else {
+                  value
+               };
+            }
+        } else {
+            quote! {
+               let value = #value_type::deserialize(deserializer)?;
+               if value.is_empty() {
+                   return Err(serde::de::Error::custom("Value field cannot be empty for non optional string primitive."));
+               }
+            }
+        }
+    } else {
+        quote! { let value = #value_type::deserialize(deserializer)?; }
+    }
+}
 
 // Generates code for deserializing the primtiive value.
 // Note field, extension deserialization is handled on struct level (parent).
@@ -19,9 +51,17 @@ pub fn fhir_primitive_deserialization(input: DeriveInput) -> TokenStream {
             let value_field_found = data
                 .fields
                 .iter()
-                .find(|f| f.ident == Some(format_ident!("value")));
+                .find(|f| f.ident == Some(format_ident!("value")))
+                .expect("value field is required for primitive deserialization");
 
-            let value_type = get_field_type(value_field_found.unwrap());
+            let value_deserialization = fhir_primitive_value_deserialization(value_field_found);
+
+            // For markdown requires field value so always not empty when deserialized from above.
+            let empty_check = if is_optional_field(value_field_found) {
+                quote! { self.value.is_none() && self.id.is_none() && self.extension.is_none() }
+            } else {
+                quote! { false }
+            };
 
             let deserialize_impl = quote! {
                impl<'de> serde::Deserialize<'de> for #name {
@@ -29,12 +69,18 @@ pub fn fhir_primitive_deserialization(input: DeriveInput) -> TokenStream {
                     where
                         D: serde::Deserializer<'de>,
                     {
-                        let s = #value_type::deserialize(deserializer)?;
+                        #value_deserialization
                         Ok(#name {
                             id: None,
                             extension: None,
-                            value: s,
+                            value,
                         })
+                    }
+                }
+
+                impl #name {
+                    pub fn empty(&self) -> bool {
+                        #empty_check
                     }
                 }
             };
@@ -97,6 +143,19 @@ pub fn valueset_deserialization(input: DeriveInput) -> TokenStream {
                     pub fn merge_element(&mut self, element: Element) {
                         match self {
                             #(#variants_merge_element,)*
+                        }
+                    }
+
+                    pub fn empty(&self) -> bool {
+                        match self {
+                            Self::Null(e) => {
+                                if let Some(e) = e.as_ref() {
+                                  e.id.is_none() && e.extension.is_none()
+                                } else {
+                                  false
+                                }
+                            },
+                            _ => false,
                         }
                     }
                 }
@@ -170,6 +229,15 @@ pub fn typechoice_deserialization(input: DeriveInput) -> TokenStream {
                     }
                 }
             });
+
+            // let primitive_empty_check = primitive_variants.iter().map(|variant| {
+            //     let variant_ident = variant.ident.clone();
+            //     quote! {
+            //         Self::#variant_ident(v) => {
+            //             v.is_empty()
+            //         }
+            //     }
+            // });
 
             let deserialize_impl = quote! {
                 impl #name {
@@ -450,6 +518,54 @@ fn merge_typechoice_primitive_extension_tokens(
     }
 }
 
+fn validate_primitive_not_empty(field: &FieldInformation) -> proc_macro2::TokenStream {
+    if !matches!(field.type_info, TypeInformation::Primitive) {
+        panic!("validate_primitive_not_empty should only be called for primitive fields.");
+    }
+
+    let value_ident = value_ident(&field.ident);
+    let field_name = &field.field_name;
+
+    if field.is_vector {
+        let vector_pattern = format_ident!("__{}_vector", field.ident);
+        let matching_constraint = get_matching_constraint_for_value(field, &vector_pattern);
+
+        quote! {
+            match &#value_ident {
+                #matching_constraint => {
+                    for (index, value) in #vector_pattern.iter().enumerate() {
+                        if value.empty() {
+                            return Err(serde::de::Error::custom(format!(
+                                "Primitive field '{}' at index {} has no value, id, or extension.",
+                                #field_name,
+                                index,
+                            )));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    } else {
+        let matching_constraint = if field.is_optional {
+            quote! { Some(Some(value)) }
+        } else {
+            quote! { Some(value) }
+        };
+
+        quote! {
+            if let #matching_constraint = &#value_ident {
+                if value.empty() {
+                    return Err(serde::de::Error::custom(format!(
+                        "Primitive field '{}' has no value, id, or extension.",
+                        #field_name,
+                    )));
+                }
+            }
+        }
+    }
+}
+
 fn cardinality_checks(field: &FieldInformation) -> Option<proc_macro2::TokenStream> {
     if let Some(CardinalityAttribute { min, max }) = &field.cardinality {
         let field_name = &field.field_name;
@@ -527,6 +643,12 @@ pub fn complex_deserialization(
                 .iter()
                 .filter(|field| matches!(field.type_info, TypeInformation::Primitive))
                 .map(merge_primitive_extension_tokens)
+                .collect::<Vec<_>>();
+
+            let primitive_value_presence_validations = field_meta
+                .iter()
+                .filter(|field| matches!(field.type_info, TypeInformation::Primitive))
+                .map(validate_primitive_not_empty)
                 .collect::<Vec<_>>();
 
             let typechoice_merge_blocks = field_meta
@@ -724,18 +846,6 @@ pub fn complex_deserialization(
 
             let field_names = data.fields.iter().map(|f| f.ident.as_ref().unwrap());
 
-            // Temp disabling because tag removes the field. Can add this back when I alter Resource enum to not remove the field.
-            // let required_resource_check =
-            //     if deserialize_complex_type == DeserializeComplexType::Resource {
-            //         quote! {
-            //             if !#seen_resource_type_ident {
-            //                 return Err(serde::de::Error::missing_field("resourceType"));
-            //             }
-            //         }
-            //     } else {
-            //         quote! {}
-            //     };
-
             let deserialize_impl = quote! {
                 impl<'de> serde::Deserialize<'de> for #name {
                     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
@@ -765,9 +875,7 @@ pub fn complex_deserialization(
 
                                 #(#primitive_merge_blocks)*
                                 #(#typechoice_merge_blocks)*
-
-
-
+                                #(#primitive_value_presence_validations)*
 
 
                                 #(#bind_fields)*
