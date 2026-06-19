@@ -6,8 +6,8 @@ use crate::{
     DeserializeComplexType,
     utilities::{
         CardinalityAttribute, FieldInformation, TypeInformation, get_attribute_value,
-        get_field_type, get_inner_type_if_optional, is_attribute_present, is_optional_field,
-        is_type_string, process_field,
+        get_field_type, get_inner_type_if_optional, get_inner_type_if_vector_or_optional_or_box,
+        is_attribute_present, is_optional_field, is_type_string, process_field,
     },
 };
 
@@ -230,13 +230,53 @@ pub fn typechoice_deserialization(input: DeriveInput) -> TokenStream {
                 }
             });
 
+            let deserialize_straight = primitive_variants
+                .iter()
+                .chain(complex_variants.iter())
+                .map(|variant| {
+                    let variant_ident = variant.ident.clone();
+                    let variant_ty = variant
+                        .fields
+                        .iter()
+                        .next()
+                        .expect("typechoice variant must have a single field")
+                        .ty
+                        .clone();
+
+                    let inner_type = get_inner_type_if_vector_or_optional_or_box(&variant_ty);
+
+                    quote! {
+                        if let Ok(value) = #inner_type::deserialize(deserializer) {
+                            return Ok(Self::#variant_ident(Box::new(value)));
+                        }
+                    }
+                });
+
             let complex_variant_ident =
                 complex_variants.iter().map(|variant| variant.ident.clone());
             let primitive_variant_ident = primitive_variants
                 .iter()
                 .map(|variant| variant.ident.clone());
 
-            let deserialize_impl = quote! {
+            let name_str = name.to_string();
+
+            let _deserialize_impl = quote! {
+               impl<'de> serde::Deserialize<'de> for #name {
+                    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                    where
+                        D: serde::Deserializer<'de>,
+                    {
+                        #(#deserialize_straight)*
+
+                        return Err(serde::de::Error::custom(format!(
+                            "Data does not match any variant for type choice '{}'",
+                            #name_str
+                        )));
+                    }
+                }
+            };
+
+            let utility_funcs = quote! {
                 impl #name {
                     // Returns Some(Self) if key matches any variant, None to skip unknown keys.
                     pub fn try_deserialize_from_key<'de, A: serde::de::MapAccess<'de>>(
@@ -282,7 +322,10 @@ pub fn typechoice_deserialization(input: DeriveInput) -> TokenStream {
                 }
             };
 
-            deserialize_impl.into()
+            quote! {
+                #utility_funcs
+            }
+            .into()
         }
         _ => panic!("Only enums can be deserialized for type choice deserializer."),
     }
