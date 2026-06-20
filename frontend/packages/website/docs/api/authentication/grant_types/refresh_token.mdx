@@ -56,7 +56,7 @@ sequenceDiagram
     App->>User: Redirect to authorization endpoint
     Note over App,User: /authorize?response_type=code<br/>client_id=app-id<br/>scope=openid offline_access patient/*.read<br/>code_challenge=CHALLENGE<br/>code_challenge_method=S256
     
-    User->>AuthServer: GET /w/{tenant}/oauth/api/v1/authorize
+    User->>AuthServer: GET /w/{tenant}/{project}/api/v1/oidc/auth/authorize
     
     AuthServer->>User: Show login page
     User->>AuthServer: Enter credentials
@@ -67,7 +67,7 @@ sequenceDiagram
     
     App->>Storage: Retrieve code_verifier
     
-    App->>AuthServer: POST /w/{tenant}/oauth/api/v1/token
+    App->>AuthServer: POST /w/{tenant}/{project}/api/v1/oidc/auth/token
     Note over App,AuthServer: grant_type=authorization_code<br/>code=AUTH_CODE<br/>code_verifier=VERIFIER<br/>client_id=app-id
     
     AuthServer->>AuthServer: Verify code_verifier<br/>SHA256 matches challenge
@@ -101,7 +101,7 @@ sequenceDiagram
         
         App->>Storage: Retrieve refresh_token
         
-        App->>AuthServer: POST /w/{tenant}/oauth/api/v1/token
+        App->>AuthServer: POST /w/{tenant}/{project}/api/v1/oidc/auth/token
         Note over App,AuthServer: Content-Type: application/x-www-form-urlencoded<br/>grant_type=refresh_token<br/>refresh_token=REFRESH_TOKEN<br/>client_id=app-client-id
         
         AuthServer->>AuthServer: Validate refresh token<br/>Check if revoked<br/>Verify client_id<br/>Generate new tokens
@@ -148,7 +148,7 @@ Refresh tokens are issued during the Authorization Code Grant with PKCE flow whe
 
 **Authorization Request (include offline_access):**
 ```http
-GET /w/{tenant}/oauth/api/v1/authorize?
+GET /w/{tenant}/{project}/api/v1/oidc/auth/authorize?
   response_type=code&
   client_id=your-app-id&
   redirect_uri=https://yourapp.com/callback&
@@ -165,7 +165,7 @@ GET /w/{tenant}/oauth/api/v1/authorize?
 
 **Token Exchange Request:**
 ```http
-POST /w/{tenant}/oauth/api/v1/token
+POST /w/{tenant}/{project}/api/v1/oidc/auth/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code&
@@ -203,7 +203,7 @@ When the access token expires, exchange the refresh token for a new access token
 
 **Request:**
 ```http
-POST /w/{tenant}/oauth/api/v1/token HTTP/1.1
+POST /w/{tenant}/{project}/api/v1/oidc/auth/token HTTP/1.1
 Host: api.haste.health
 Content-Type: application/x-www-form-urlencoded
 
@@ -214,7 +214,7 @@ client_id=your-client-id
 
 **For Confidential Clients (with client_secret):**
 ```http
-POST /w/{tenant}/oauth/api/v1/token HTTP/1.1
+POST /w/{tenant}/{project}/api/v1/oidc/auth/token HTTP/1.1
 Host: api.haste.health
 Content-Type: application/x-www-form-urlencoded
 Authorization: Basic base64(client_id:client_secret)

@@ -69,7 +69,7 @@ sequenceDiagram
     
     SPA->>Browser: Retrieve code_verifier<br/>from sessionStorage
     
-    SPA->>AuthServer: POST /w/{tenant}/oauth/api/v1/token
+    SPA->>AuthServer: POST /w/{tenant}/{project}/api/v1/oidc/auth/token
     Note over SPA,AuthServer: Content-Type: application/x-www-form-urlencoded<br/>grant_type=authorization_code<br/>code=AUTH_CODE<br/>redirect_uri=https://app.com/callback<br/>client_id=spa-client-id<br/>code_verifier=ORIGINAL_VERIFIER
     
     AuthServer->>AuthServer: Validate authorization code<br/>Verify redirect_uri matches<br/>Hash code_verifier with SHA256<br/>Compare with stored code_challenge
@@ -169,7 +169,7 @@ The SPA exchanges the authorization code for tokens using the code_verifier (no 
 
 **Request:**
 ```http
-POST /w/{tenant}/oauth/api/v1/token HTTP/1.1
+POST /w/{tenant}/{project}/api/v1/oidc/auth/token HTTP/1.1
 Host: api.haste.health
 Content-Type: application/x-www-form-urlencoded
 
