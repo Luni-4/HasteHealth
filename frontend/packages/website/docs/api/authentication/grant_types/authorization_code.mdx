@@ -108,7 +108,7 @@ The client application redirects the user to the authorization endpoint with the
 
 **Request:**
 ```http
-GET /w/{tenant}/oauth/api/v1/authorize?
+GET /w/{tenant}/{project}/api/v1/oidc/auth/authorize?
   response_type=code&
   client_id=your-client-id&
   redirect_uri=https://yourapp.com/callback&
