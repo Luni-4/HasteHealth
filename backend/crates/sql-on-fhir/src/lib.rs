@@ -14,6 +14,8 @@ use haste_reflect::MetaValue;
 use std::borrow::Cow;
 use std::{collections::HashMap, sync::Arc};
 
+use crate::conversions::primitives::PrimitiveValue;
+
 mod conversions;
 mod output;
 
@@ -148,10 +150,10 @@ async fn process_resource<
     Client: FHIRClient<CTX, OperationOutcomeError> + Send + Sync + 'static,
 >(
     _context: CTX,
-    _client: &Client,
+    _client: Arc<Client>,
     view_definition: &ViewDefinition,
-    input: &Resource,
-) -> Result<(), OperationOutcomeError> {
+    input: Resource,
+) -> Result<HashMap<String, Vec<Option<PrimitiveValue>>>, OperationOutcomeError> {
     let fp_engine = FPEngine::new();
     let variables = Arc::new(build_hashmap_fp_variables(view_definition));
     if let Some(_where_conditionals) = &view_definition.where_ {
@@ -161,33 +163,33 @@ async fn process_resource<
         ));
     }
 
+    let mut output_result = HashMap::<String, Vec<Option<PrimitiveValue>>>::new();
+
     for select_statement in view_definition.select.iter() {
-        let mut context: Vec<&dyn MetaValue> = vec![input];
+        let fp_config = Arc::new(Config {
+            variable_resolver: Some(haste_fhirpath::ExternalConstantResolver::Variable(
+                variables.clone(),
+            )),
+        });
+
+        let mut iterable_context = None;
 
         if let Some(for_each) = select_statement
             .forEach
             .as_ref()
             .and_then(|f| f.value.as_ref())
         {
-            context = fp_engine
-                .evaluate_with_config(
-                    for_each,
-                    context,
-                    Arc::new(Config {
-                        variable_resolver: Some(
-                            haste_fhirpath::ExternalConstantResolver::Variable(variables.clone()),
-                        ),
-                    }),
-                )
-                .await
-                .map_err(|e| {
-                    OperationOutcomeError::error(
-                        IssueType::Exception(None),
-                        format!("Error evaluating forEach expression: {}", e),
-                    )
-                })?
-                .iter()
-                .collect::<Vec<_>>();
+            iterable_context = Some(
+                fp_engine
+                    .evaluate_with_config(for_each, vec![&input], fp_config.clone())
+                    .await
+                    .map_err(|e| {
+                        OperationOutcomeError::error(
+                            IssueType::Exception(None),
+                            format!("Error evaluating forEach expression: {}", e),
+                        )
+                    })?,
+            );
         } else if let Some(_for_each_or_null) = select_statement.forEachOrNull.as_ref() {
             return Err(OperationOutcomeError::error(
                 IssueType::NotSupported(None),
@@ -200,6 +202,12 @@ async fn process_resource<
             ));
         }
 
+        let context: Vec<&dyn MetaValue> = if let Some(iterable) = iterable_context.as_ref() {
+            iterable.iter().collect()
+        } else {
+            vec![&input]
+        };
+
         for column in select_statement.column.as_ref().into_iter().flatten() {
             let _column_type = column
                 .type_
@@ -208,10 +216,54 @@ async fn process_resource<
                 .map(|t| t.as_str())
                 // Default to string.
                 .unwrap_or("string");
+
+            let Some(path) = column.path.value.as_ref().map(|p| p.as_str()) else {
+                return Err(OperationOutcomeError::error(
+                    IssueType::Invalid(None),
+                    "Column path is required".to_string(),
+                ));
+            };
+
+            let Some(name) = column.name.value.as_ref().map(|n| n.as_str()) else {
+                return Err(OperationOutcomeError::error(
+                    IssueType::Invalid(None),
+                    "Column name is required".to_string(),
+                ));
+            };
+
+            let result = fp_engine
+                .evaluate(path, context.clone())
+                .await
+                .map_err(|e| {
+                    OperationOutcomeError::error(
+                        IssueType::Exception(None),
+                        format!("Error evaluating expression: {}", e),
+                    )
+                })?;
+            let column_result = result
+                .iter()
+                .map(|value| conversions::primitives::convert_meta_value(_column_type, value))
+                .collect::<Result<Vec<Option<PrimitiveValue>>, OperationOutcomeError>>()?;
+
+            let is_collection = column
+                .collection
+                .as_ref()
+                .and_then(|c| c.value)
+                .unwrap_or(false);
+
+            if is_collection && column_result.len() > 1 {
+                return Err(OperationOutcomeError::error(
+                    IssueType::Invalid(None),
+                    "Column result is a collection but the column is not marked as a collection"
+                        .to_string(),
+                ));
+            }
+
+            output_result.insert(name.to_string(), column_result);
         }
     }
 
-    todo!("Not implemented");
+    Ok(output_result)
 }
 
 async fn process_view_definition<
@@ -219,7 +271,7 @@ async fn process_view_definition<
     Client: FHIRClient<CTX, OperationOutcomeError> + Send + Sync + 'static,
 >(
     context: CTX,
-    client: &Client,
+    client: Arc<Client>,
     view_definition: &ViewDefinition,
     input: &ViewDefinitionRun::Input,
 ) -> Result<Binary, OperationOutcomeError> {
@@ -236,11 +288,38 @@ async fn process_view_definition<
         .and_then(|since| since.value.clone())
         .unwrap_or(r4::datetime::Instant::Iso8601(Utc::now()));
 
-    let input_ = get_resources_to_process(context.clone(), client, input).await?;
+    let input_ = get_resources_to_process(context.clone(), client.as_ref(), input).await?;
 
-    let _result = input_
-        .iter()
-        .map(|resource| process_resource(context.clone(), client, view_definition, resource));
+    let mut tasks = Vec::with_capacity(input_.len());
+
+    for resource in input_ {
+        let context_clone = context.clone();
+        let client_clone = client.clone();
+        let view_definition_clone = view_definition.clone();
+
+        let task = tokio::spawn(async move {
+            process_resource(
+                context_clone,
+                client_clone,
+                &view_definition_clone,
+                resource,
+            )
+            .await
+        });
+
+        tasks.push(task);
+    }
+
+    let mut results = Vec::with_capacity(tasks.len());
+
+    for task in tasks {
+        results.push(task.await.map_err(|e| {
+            OperationOutcomeError::error(
+                IssueType::Exception(None),
+                format!("Task join error: {}", e),
+            )
+        })??);
+    }
 
     // Implement the logic to process the view definition and return the result as Binary
     // For now, we will return an empty Binary as a placeholder
@@ -252,10 +331,10 @@ pub async fn view_definition_run<
     Client: FHIRClient<CTX, OperationOutcomeError> + Send + Sync + 'static,
 >(
     context: CTX,
-    client: &Client,
+    client: Arc<Client>,
     input: &ViewDefinitionRun::Input,
 ) -> Result<ViewDefinitionRun::Output, OperationOutcomeError> {
-    let view_definition = resolve_view_definition(context.clone(), client, &input).await?;
+    let view_definition = resolve_view_definition(context.clone(), client.as_ref(), &input).await?;
 
     let output = process_view_definition(context, client, &view_definition, &input).await?;
 
