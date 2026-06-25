@@ -3,9 +3,9 @@ use haste_fhir_model::r4::{
     generated::{
         terminology::IssueType,
         types::{
-            FHIRBase64Binary, FHIRBoolean, FHIRCanonical, FHIRCode, FHIRDate, FHIRDateTime,
-            FHIRDecimal, FHIRId, FHIRInstant, FHIRInteger, FHIRMarkdown, FHIROid, FHIRPositiveInt,
-            FHIRString, FHIRTime, FHIRUnsignedInt, FHIRUri, FHIRUrl, FHIRUuid,
+            FHIRBase64Binary, FHIRBoolean, FHIRCanonical, FHIRDate, FHIRDateTime, FHIRDecimal,
+            FHIRId, FHIRInstant, FHIRInteger, FHIRMarkdown, FHIROid, FHIRPositiveInt, FHIRString,
+            FHIRTime, FHIRUnsignedInt, FHIRUri, FHIRUrl, FHIRUuid,
         },
     },
 };
@@ -121,13 +121,14 @@ pub fn convert_meta_value(
                     .map(PrimitiveValue::String)
             })
         }
-        "code" => convert_with::<FHIRCode, _, _>(value, "code", |primitive| {
-            primitive
-                .value
-                .as_ref()
-                .cloned()
-                .map(PrimitiveValue::String)
-        }),
+        "code" => {
+            // Because of inline terminologies we manually pull of the value
+            // For example AddressUse etc...
+            Ok(value
+                .get_field("value")
+                .and_then(|v| v.as_any().downcast_ref::<String>().cloned())
+                .map(PrimitiveValue::String))
+        }
         "id" => convert_with::<FHIRId, _, _>(value, "id", |primitive| {
             primitive
                 .value
