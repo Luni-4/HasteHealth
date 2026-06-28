@@ -77,9 +77,7 @@ mod tests {
         let result = evaluation(
             "Patient/{{$this.id}}",
             vec![&patient],
-            Arc::new(Config {
-                variable_resolver: None,
-            }),
+            Arc::new(Config::default()),
         )
         .await
         .expect("Evaluation failed");
@@ -103,9 +101,7 @@ mod tests {
         let result = evaluation(
             "Patient/{{$this.id}}/{{$this.name.family.value}}",
             vec![&patient],
-            Arc::new(Config {
-                variable_resolver: None,
-            }),
+            Arc::new(Config::default()),
         )
         .await
         .expect("Evaluation failed");
