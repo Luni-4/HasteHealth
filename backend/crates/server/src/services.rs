@@ -174,21 +174,15 @@ pub async fn create_services(
         .get(ServerEnvironmentVariables::AllowArtifactMutations)
         .unwrap_or("false".into());
 
-    let fhir_client = Arc::new(FHIRServerClient::new(if can_mutate == "true" {
-        ServerClientConfig::allow_mutate_artifacts(
-            pool.clone(),
-            search_engine.clone(),
-            terminology.clone(),
-            config.clone(),
-        )
-    } else {
+    let fhir_client = Arc::new(FHIRServerClient::new(
         ServerClientConfig::new(
             pool.clone(),
             search_engine.clone(),
             terminology.clone(),
             config.clone(),
         )
-    }));
+        .with_mutate_artifacts(can_mutate == "true"),
+    ));
 
     let shared_state = Arc::new(AppState {
         config,

@@ -321,19 +321,9 @@ impl<
         }
     }
 
-    pub fn allow_mutate_artifacts(
-        repo: Arc<Repo>,
-        search: Arc<Search>,
-        terminology: Arc<Terminology>,
-        config: Arc<dyn Config<ServerEnvironmentVariables>>,
-    ) -> Self {
-        Self {
-            repo,
-            search,
-            terminology,
-            config,
-            mutate_artifacts: true,
-        }
+    pub fn with_mutate_artifacts(mut self, mutate_artifacts: bool) -> Self {
+        self.mutate_artifacts = mutate_artifacts;
+        self
     }
 }
 
