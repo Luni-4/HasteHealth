@@ -551,6 +551,23 @@ async fn evaluate_function<'a>(
 
             return Ok(context.new_context_from(next_context));
         }
+        "getResourceKey" => {
+            validate_arguments(&function.arguments, &Cardinality::Zero)?;
+
+            let Some(id) = config.and_then(|c| c.resource_id.clone()) else {
+                return Err(FHIRPathError::InternalError(
+                    "getResourceKey function requires resource_id in config".to_string(),
+                ));
+            };
+
+            let resource_key = FHIRId {
+                value: Some(id),
+                ..Default::default()
+            };
+
+            let next_context = vec![context.allocate_literal(resource_key).await];
+            return Ok(context.new_context_from(next_context));
+        }
         _ => {
             return Err(FHIRPathError::NotImplemented(format!(
                 "Function '{}' is not implemented",
@@ -2157,6 +2174,24 @@ mod tests {
             .downcast_ref::<FHIRString>()
             .unwrap();
         assert_eq!(value.value.as_deref(), Some("xyz"));
+    }
+
+    #[tokio::test]
+    async fn get_resource_key() {
+        let engine = FPEngine::new();
+        let fp_config = Config::builder().with_resource_id("asdf".to_string());
+
+        let result = engine
+            .evaluate_with_config("getResourceKey()", vec![], Arc::new(fp_config))
+            .await
+            .unwrap();
+
+        let k = result.iter().collect::<Vec<_>>();
+
+        assert_eq!(k.len(), 1);
+
+        let s = k[0].as_any().downcast_ref::<FHIRId>().unwrap();
+        assert_eq!(s.value.as_deref(), Some("asdf"));
     }
 
     #[tokio::test]
