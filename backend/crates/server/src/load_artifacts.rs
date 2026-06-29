@@ -7,7 +7,6 @@ use haste_config::Config;
 use haste_fhir_client::{
     FHIRClient,
     request::{FHIRSearchTypeRequest, SearchRequest},
-    url::{Parameter, ParsedParameter, ParsedParameters},
 };
 use haste_fhir_model::r4::generated::{
     resources::{Resource, ResourceType, SearchParameter, StructureDefinition},
@@ -125,7 +124,7 @@ pub async fn reset_artifacts(
             .delete_type(
                 ctx.clone(),
                 ResourceType::CodeSystem,
-                ParsedParameters::new(vec![]),
+                (vec![] as Vec<(String, Vec<String>)>).into(),
             )
             .await?;
         tracing::info!("Deleting existing ValueSets");
@@ -133,7 +132,7 @@ pub async fn reset_artifacts(
             .delete_type(
                 ctx.clone(),
                 ResourceType::ValueSet,
-                ParsedParameters::new(vec![]),
+                (vec![] as Vec<(String, Vec<String>)>).into(),
             )
             .await?;
         tracing::info!("Deleting existing StructureDefinitions");
@@ -141,7 +140,7 @@ pub async fn reset_artifacts(
             .delete_type(
                 ctx.clone(),
                 ResourceType::StructureDefinition,
-                ParsedParameters::new(vec![]),
+                (vec![] as Vec<(String, Vec<String>)>).into(),
             )
             .await?;
         tracing::info!("Deleting existing SearchParameters");
@@ -149,7 +148,7 @@ pub async fn reset_artifacts(
             .delete_type(
                 ctx.clone(),
                 ResourceType::SearchParameter,
-                ParsedParameters::new(vec![]),
+                (vec![] as Vec<(String, Vec<String>)>).into(),
             )
             .await?;
         _load_artifacts(ctx.clone()).await?;
@@ -187,20 +186,14 @@ async fn _load_artifacts<Client: FHIRClient<Arc<ServerCTX<Client>>, OperationOut
                     .conditional_update(
                         ctx.clone(),
                         resource_type.clone(),
-                        ParsedParameters::new(vec![
-                            ParsedParameter::Resource(Parameter {
-                                name: "_id".to_string(),
-                                value: vec![id.clone()],
-                                modifier: None,
-                                chains: None,
-                            }),
-                            ParsedParameter::Resource(Parameter {
-                                name: "_tag".to_string(),
-                                value: vec![HASH_TAG_SYSTEM.to_string() + "|" + sha_hash.as_str()],
-                                modifier: Some("not".to_string()),
-                                chains: None,
-                            }),
-                        ]),
+                        vec![
+                            ("_id".to_string(), vec![id.clone()]),
+                            (
+                                "_tag".to_string(),
+                                vec![HASH_TAG_SYSTEM.to_string() + "|" + sha_hash.as_str()],
+                            ),
+                        ]
+                        .into(),
                         resource.clone(),
                     )
                     .await;
@@ -276,32 +269,15 @@ pub async fn get_all_sds<Repo: Repository, Search: SearchEngine>(
 ) -> Result<Vec<StructureDefinition>, OperationOutcomeError> {
     let sd_search = FHIRSearchTypeRequest {
         resource_type: ResourceType::StructureDefinition,
-        parameters: ParsedParameters::new(vec![
-            ParsedParameter::Resource(Parameter {
-                name: "kind".to_string(),
-                value: kinds.iter().map(|s| s.to_string()).collect(),
-                modifier: None,
-                chains: None,
-            }),
-            ParsedParameter::Resource(Parameter {
-                name: "abstract".to_string(),
-                value: vec!["false".to_string()],
-                modifier: None,
-                chains: None,
-            }),
-            ParsedParameter::Resource(Parameter {
-                name: "derivation".to_string(),
-                value: vec!["specialization".to_string()],
-                modifier: None,
-                chains: None,
-            }),
-            // ParsedParameter::Result(Parameter {
-            //     name: "_sort".to_string(),
-            //     value: vec!["url".to_string()],
-            //     modifier: None,
-            //     chains: None,
-            // }),
-        ]),
+        parameters: vec![
+            (
+                "kind".to_string(),
+                kinds.iter().map(|s| s.to_string()).collect(),
+            ),
+            ("abstract".to_string(), vec!["false".to_string()]),
+            ("derivation".to_string(), vec!["specialization".to_string()]),
+        ]
+        .into(),
     };
     let sd_results = search_engine
         .search(
@@ -344,7 +320,7 @@ pub async fn get_all_sps<Repo: Repository, Search: SearchEngine>(
 ) -> Result<Vec<SearchParameter>, OperationOutcomeError> {
     let sp_search = FHIRSearchTypeRequest {
         resource_type: ResourceType::SearchParameter,
-        parameters: ParsedParameters::new(vec![]),
+        parameters: (vec![] as Vec<(String, Vec<String>)>).into(),
     };
     let sp_results = search_engine
         .search(

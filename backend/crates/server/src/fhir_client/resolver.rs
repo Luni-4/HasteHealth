@@ -1,9 +1,5 @@
 use crate::fhir_client::ServerCTX;
-use haste_fhir_client::{
-    FHIRClient,
-    canonical_resolver::CanonicalResolver,
-    url::{Parameter, ParsedParameter, ParsedParameters},
-};
+use haste_fhir_client::{FHIRClient, canonical_resolver::CanonicalResolver};
 use haste_fhir_model::r4::generated::resources::{Resource, ResourceType};
 use haste_fhir_operation_error::OperationOutcomeError;
 use haste_jwt::{ProjectId, TenantId};
@@ -73,12 +69,9 @@ impl<Client: FHIRClient<Arc<ServerCTX<Client>>, OperationOutcomeError>> Canonica
                     .search_type(
                         self.0.clone(),
                         resource_type,
-            ParsedParameters::new(vec![ParsedParameter::Resource(Parameter {
-                                name: "url".to_string(),
-                                value: vec![url.to_string()],
-                                modifier: None,
-                                chains: None,
-                            })]),
+            vec![
+                            ("url".to_string(), vec![url.to_string()])
+                        ].into()
                     )
                     .await?
                     .entry
