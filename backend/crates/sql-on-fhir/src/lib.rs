@@ -16,6 +16,7 @@ use haste_fhirpath::{Config, FPEngine};
 use haste_reflect::MetaValue;
 use itertools::Itertools as _;
 use ordermap::OrderMap;
+use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
 use crate::conversions::primitives::PrimitiveValue;
@@ -98,26 +99,6 @@ async fn resolve_view_definition<
     }
 }
 
-fn get_output_format(
-    input: &ViewDefinitionRun::Input,
-) -> Result<OutputFormatCodes, OperationOutcomeError> {
-    let output_format = input
-        ._format
-        .as_ref()
-        .and_then(|output_format| output_format.value.clone())
-        .and_then(|format| {
-            Some(OutputFormatCodes::try_from(format).map_err(|e| {
-                OperationOutcomeError::error(
-                    IssueType::Invalid(None),
-                    format!("Invalid output format: {}", e),
-                )
-            }))
-        })
-        .unwrap_or(Ok(OutputFormatCodes::Ndjson(None)))?;
-
-    Ok(output_format)
-}
-
 async fn get_resources_to_process<
     CTX: Send + Sync + Clone + 'static,
     Client: FHIRClient<CTX, OperationOutcomeError> + Send + Sync + 'static,
@@ -183,8 +164,8 @@ fn build_hashmap_fp_variables<'a>(
 }
 
 fn cartesian_product(
-    select_statement_results: Vec<Vec<OrderMap<String, Vec<Option<PrimitiveValue>>>>>,
-) -> Vec<OrderMap<String, Vec<Option<PrimitiveValue>>>> {
+    select_statement_results: Vec<Vec<OrderMap<String, OutputResults>>>,
+) -> Vec<OrderMap<String, OutputResults>> {
     let mut output_results = Vec::new();
 
     for combination in select_statement_results
@@ -195,10 +176,7 @@ fn cartesian_product(
 
         for result in combination {
             for (key, value) in result {
-                combined_result
-                    .entry(key)
-                    .or_insert_with(Vec::new)
-                    .extend(value);
+                combined_result.insert(key, value);
             }
         }
 
@@ -206,6 +184,14 @@ fn cartesian_product(
     }
 
     output_results
+}
+
+// Need to distinguish between a scalar value and a collection of values for each column in the output. This enum helps to represent that distinction.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+enum OutputResults {
+    Scalar(Option<PrimitiveValue>),
+    Collection(Vec<Option<PrimitiveValue>>),
 }
 
 async fn process_resource<
@@ -217,7 +203,7 @@ async fn process_resource<
     variables: Arc<HashMap<String, &dyn MetaValue>>,
     view_definition: &ViewDefinition,
     input: Box<Resource>,
-) -> Result<Vec<OrderMap<String, Vec<Option<PrimitiveValue>>>>, OperationOutcomeError> {
+) -> Result<Vec<OrderMap<String, OutputResults>>, OperationOutcomeError> {
     let fp_engine = FPEngine::new();
 
     let mut select_statement_results = Vec::with_capacity(view_definition.select.len());
@@ -312,7 +298,7 @@ async fn process_resource<
                         "Column name is required".to_string(),
                     ));
                 };
-                output_result.insert(name.to_string(), vec![None]);
+                output_result.insert(name.to_string(), OutputResults::Scalar(None));
             }
             select_results.push(output_result);
         }
@@ -361,7 +347,7 @@ async fn process_resource<
                             .unwrap_or("string"),
                     );
 
-                let column_result = result
+                let mut column_result = result
                     .iter()
                     .map(|value| conversions::primitives::convert_meta_value(column_type, value))
                     .collect::<Result<Vec<Option<PrimitiveValue>>, OperationOutcomeError>>()?;
@@ -372,15 +358,27 @@ async fn process_resource<
                     .and_then(|c| c.value)
                     .unwrap_or(false);
 
-                if is_collection && column_result.len() > 1 {
-                    return Err(OperationOutcomeError::error(
-                        IssueType::Invalid(None),
-                        "Column result is a collection but the column is not marked as a collection"
-                            .to_string(),
-                    ));
-                }
+                let insert_value = if is_collection {
+                    OutputResults::Collection(column_result)
+                } else {
+                    if column_result.len() > 1 {
+                        return Err(OperationOutcomeError::error(
+                            IssueType::Invalid(None),
+                            "Column result is a collection but the column is not marked as a collection"
+                                .to_string(),
+                        ));
+                    }
 
-                output_result.insert(name.to_string(), column_result);
+                    let mut singular_value = None;
+
+                    if let Some(first_value) = column_result.get_mut(0) {
+                        std::mem::swap(&mut singular_value, first_value);
+                    }
+
+                    OutputResults::Scalar(singular_value)
+                };
+
+                output_result.insert(name.to_string(), insert_value);
             }
             select_results.push(output_result);
         }
@@ -476,7 +474,6 @@ async fn process_view_definition<
     input: &ViewDefinitionRun::Input,
 ) -> Result<Binary, OperationOutcomeError> {
     let variables = Arc::new(build_hashmap_fp_variables(view_definition));
-    let _output_format = get_output_format(input)?;
     let _limit = input
         ._limit
         .as_ref()
@@ -535,6 +532,31 @@ async fn process_view_definition<
         OutputFormatCodes::Csv(_) => {
             let data = output::csv::csv(results)?;
 
+            let base64_string: String = general_purpose::STANDARD.encode(&data);
+
+            Ok(Binary {
+                data: Some(Box::new(FHIRBase64Binary {
+                    value: Some(base64_string),
+                    ..Default::default()
+                })),
+                ..Default::default()
+            })
+        }
+        OutputFormatCodes::Json(_) => {
+            let data = output::json::json(results)?;
+
+            let base64_string: String = general_purpose::STANDARD.encode(&data);
+
+            Ok(Binary {
+                data: Some(Box::new(FHIRBase64Binary {
+                    value: Some(base64_string),
+                    ..Default::default()
+                })),
+                ..Default::default()
+            })
+        }
+        OutputFormatCodes::Ndjson(_) => {
+            let data = output::ndjson::ndjson(results)?;
             let base64_string: String = general_purpose::STANDARD.encode(&data);
 
             Ok(Binary {
