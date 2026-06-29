@@ -1,0 +1,49 @@
+---
+slug: feature-updates/june-2026-feature-updates
+title: June 2026 Feature Updates
+authors: [ralph-parkison]
+tags: [hastehealth, feature-update]
+---
+
+June was dominated by two new engines landing side by side: HL7v2/MLLP message ingestion through a template-driven FHIR Converter, and a SQL on FHIR ViewDefinition runtime. Both picked up their own admin/analytics UI by month end, and FHIRPath grew new built-ins to support them.
+
+## Backend Changes
+
+### HL7v2 ingestion and the FHIR Converter engine
+- The `hl7v2` crate matured quickly: an explicit structure definition, sub-component and nested-field parsing fixes, primitive `From` impls, FHIR model parsing, serialization back to wire format, and null-handling fixes found while running real messages through the pipeline.
+- A new `fhir-converter` crate became the conversion engine, experimenting with both minijinja and Liquid templating and settling on Jinja-style templates with partial support, plus dedicated FHIRPath and HL7v2 filters and reflection-driven `fhir_type` generation to keep templates aligned with the generated FHIR model.
+- An MLLP agent and listener were stood up and plugged into a new `hl7v2` CLI command, with a custom `hl7v2_parse` operation and HL7v2 StructureDefinition added to the FHIR server and frontend artifacts regenerated to match.
+- Deserialization in `fhir-model` was hardened along the way to absorb the loosely structured data produced by conversion (empty strings, empty structs, vector edge cases).
+- PRs: [#713](https://github.com/HasteHealth/HasteHealth/pull/713), [#714](https://github.com/HasteHealth/HasteHealth/pull/714), [#715](https://github.com/HasteHealth/HasteHealth/pull/715), [#716](https://github.com/HasteHealth/HasteHealth/pull/716), [#717](https://github.com/HasteHealth/HasteHealth/pull/717), [#718](https://github.com/HasteHealth/HasteHealth/pull/718), [#719](https://github.com/HasteHealth/HasteHealth/pull/719), [#720](https://github.com/HasteHealth/HasteHealth/pull/720), [#721](https://github.com/HasteHealth/HasteHealth/pull/721), [#722](https://github.com/HasteHealth/HasteHealth/pull/722), [#723](https://github.com/HasteHealth/HasteHealth/pull/723), [#724](https://github.com/HasteHealth/HasteHealth/pull/724), [#725](https://github.com/HasteHealth/HasteHealth/pull/725), [#726](https://github.com/HasteHealth/HasteHealth/pull/726), [#727](https://github.com/HasteHealth/HasteHealth/pull/727), [#728](https://github.com/HasteHealth/HasteHealth/pull/728), [#729](https://github.com/HasteHealth/HasteHealth/pull/729), [#730](https://github.com/HasteHealth/HasteHealth/pull/730), [#731](https://github.com/HasteHealth/HasteHealth/pull/731), [#732](https://github.com/HasteHealth/HasteHealth/pull/732), [#733](https://github.com/HasteHealth/HasteHealth/pull/733), [#734](https://github.com/HasteHealth/HasteHealth/pull/734), [#735](https://github.com/HasteHealth/HasteHealth/pull/735), [#736](https://github.com/HasteHealth/HasteHealth/pull/736), [#737](https://github.com/HasteHealth/HasteHealth/pull/737), [#738](https://github.com/HasteHealth/HasteHealth/pull/738).
+
+### SQL on FHIR: a ViewDefinition execution engine
+- ViewDefinition landed as a first-class resource with a run operation wired into the custom operations middleware, moved into its own standalone `sql-on-fhir` crate.
+- The projection engine grew column/select/forEach/forEachOrNull handling, cartesian products for repeating elements, null propagation, type inference, where-clause filtering, constants, and support for views that repeat over nested ViewDefinitions.
+- CSV output formatting and primitive conversion were built out, and task execution moved away from spawning a task per row for better throughput.
+- PRs: [#739](https://github.com/HasteHealth/HasteHealth/pull/739), [#740](https://github.com/HasteHealth/HasteHealth/pull/740), [#741](https://github.com/HasteHealth/HasteHealth/pull/741), [#744](https://github.com/HasteHealth/HasteHealth/pull/744), [#745](https://github.com/HasteHealth/HasteHealth/pull/745), [#746](https://github.com/HasteHealth/HasteHealth/pull/746), [#747](https://github.com/HasteHealth/HasteHealth/pull/747), [#748](https://github.com/HasteHealth/HasteHealth/pull/748), [#752](https://github.com/HasteHealth/HasteHealth/pull/752), [#753](https://github.com/HasteHealth/HasteHealth/pull/753), [#754](https://github.com/HasteHealth/HasteHealth/pull/754), [#755](https://github.com/HasteHealth/HasteHealth/pull/755), [#756](https://github.com/HasteHealth/HasteHealth/pull/756), [#757](https://github.com/HasteHealth/HasteHealth/pull/757), [#758](https://github.com/HasteHealth/HasteHealth/pull/758), [#759](https://github.com/HasteHealth/HasteHealth/pull/759), [#760](https://github.com/HasteHealth/HasteHealth/pull/760), [#761](https://github.com/HasteHealth/HasteHealth/pull/761).
+
+## Product and UX
+
+### Analytics: a ViewDefinition editor
+- Shipped the first cut of a ViewDefinition editor in the admin app's Analytics views, backed by a new `sql-on-fhir` component package (initially prototyped as `fhir-on-sql`), with a follow-up pass exploring alternate projection layouts.
+- Frontend FHIR types and generated ops were regenerated to pick up ViewDefinition and the HL7v2 additions.
+- PRs: [#749](https://github.com/HasteHealth/HasteHealth/pull/749), [#750](https://github.com/HasteHealth/HasteHealth/pull/750), [#751](https://github.com/HasteHealth/HasteHealth/pull/751).
+
+## Platform and Runtime
+
+- FHIRPath gained `getReferenceKey` and `getResourceKey` built-ins so views can resolve and dedupe on references, plus a shared FHIRPath/rule-engine config builder used across `fhirpath`, `sql-on-fhir`, and `x-fhir-query`.
+- Type-choice serialization and deserialization were fixed up in `fhir-model` to correctly round-trip `value[x]`-style fields.
+- Parameter handling was simplified across the server: URL building in `fhir-client`, the search parameter resolver, OIDC token routes, project selection, and artifact loading were all trimmed down.
+- PRs: [#742](https://github.com/HasteHealth/HasteHealth/pull/742), [#762](https://github.com/HasteHealth/HasteHealth/pull/762), [#763](https://github.com/HasteHealth/HasteHealth/pull/763), [#764](https://github.com/HasteHealth/HasteHealth/pull/764), [#765](https://github.com/HasteHealth/HasteHealth/pull/765).
+
+## Artifacts, Tooling, and Maintenance
+
+- Dependency maintenance included bumping `multer` in the frontend, a SonarQube workflow version bump, and a couple of version bumps for the `fhir-converter` crate.
+- Auth docs got a round of URL corrections across the authorization code, client credentials, refresh token, and SMART on FHIR pages.
+- PRs: [#743](https://github.com/HasteHealth/HasteHealth/pull/743).
+
+## Standalone Commits (No PR Link)
+
+- HL7v2/FHIR Converter maintenance: [`493feb61`](https://github.com/HasteHealth/HasteHealth/commit/493feb61), [`db68edbf`](https://github.com/HasteHealth/HasteHealth/commit/db68edbf), [`4715345f`](https://github.com/HasteHealth/HasteHealth/commit/4715345f).
+- Version/CI bumps: [`3b5a1267`](https://github.com/HasteHealth/HasteHealth/commit/3b5a1267), [`7d924b88`](https://github.com/HasteHealth/HasteHealth/commit/7d924b88), [`a54a2d63`](https://github.com/HasteHealth/HasteHealth/commit/a54a2d63), [`14fd6652`](https://github.com/HasteHealth/HasteHealth/commit/14fd6652).
+- Docs URL fixes: [`11d1b62d`](https://github.com/HasteHealth/HasteHealth/commit/11d1b62d), [`efc16591`](https://github.com/HasteHealth/HasteHealth/commit/efc16591).
