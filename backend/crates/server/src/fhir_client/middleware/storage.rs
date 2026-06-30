@@ -140,7 +140,6 @@ impl<
         >,
     ) -> ServerMiddlewareOutput<Client> {
         Box::pin(async move {
-            tracing::info!("Test");
             let response = match &mut context.request {
                 FHIRRequest::Create(create_request) => {
                     Ok(Some(FHIRResponse::Create(FHIRCreateResponse {
@@ -474,6 +473,17 @@ impl<
                         }
                     }
                     UpdateRequest::Conditional(update_request) => {
+                        let update_parameters = update_request
+                            .parameters
+                            .parameters()
+                            .clone()
+                            .into_iter()
+                            .filter(|p| match p {
+                                ParsedParameter::Resource(_) => true,
+                                _ => false,
+                            })
+                            .collect();
+
                         let search_results = state
                             .search
                             .search(
@@ -482,18 +492,7 @@ impl<
                                 &context.ctx.project,
                                 &SearchRequest::Type(FHIRSearchTypeRequest {
                                     resource_type: update_request.resource_type.clone(),
-                                    parameters: ParsedParameters::new(
-                                        update_request
-                                            .parameters
-                                            .parameters()
-                                            .clone()
-                                            .into_iter()
-                                            .filter(|p| match p {
-                                                ParsedParameter::Resource(_) => true,
-                                                _ => false,
-                                            })
-                                            .collect(),
-                                    ),
+                                    parameters: ParsedParameters::new(update_parameters),
                                 }),
                                 None,
                             )
