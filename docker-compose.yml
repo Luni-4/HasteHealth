@@ -63,6 +63,7 @@ services:
     environment:
       - HASTE_REPO.backend=postgres
       - HASTE_REPO.database_url=postgresql://postgres:postgres@postgres:5432/haste_health
+      - HASTE_REPO.max_connections=20
       - HASTE_SEARCH.backend=elasticsearch
       - HASTE_SEARCH.url=http://elasticsearch:9200
       - HASTE_SEARCH.username=elastic
@@ -90,6 +91,7 @@ services:
       - HASTE_API_URI=http://localhost:3000
       - HASTE_REPO.backend=postgres
       - HASTE_REPO.database_url=postgresql://postgres:postgres@postgres:5432/haste_health
+      - HASTE_REPO.max_connections=20
       - HASTE_SEARCH.backend=elasticsearch
       - HASTE_SEARCH.url=http://elasticsearch:9200
       - HASTE_SEARCH.username=elastic
@@ -111,6 +113,7 @@ services:
     environment:
       - HASTE_REPO.backend=postgres
       - HASTE_REPO.database_url=postgresql://postgres:postgres@postgres:5432/haste_health
+      - HASTE_REPO.max_connections=20
       - HASTE_SEARCH.backend=elasticsearch
       - HASTE_SEARCH.url=http://elasticsearch:9200
       - HASTE_SEARCH.username=elastic
