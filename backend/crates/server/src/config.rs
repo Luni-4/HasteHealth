@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(default)]
 pub struct ServerConfig {
     pub allow_artifact_mutations: bool,
     /// Used for JWT signing/verification.
@@ -17,45 +17,51 @@ pub struct ServerConfig {
     pub search: SearchConfig,
     pub email: Option<EmailConfig>,
     pub rate_limits: RateLimitsConfig,
+    pub max_request_body_size: usize,
+    pub monitoring: MonitoringConfig,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct MonitoringConfig {
+    pub ip_source: IpSource,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(default)]
 pub struct FHIRConfig {
     /// Max delete limit for type-delete and system-delete operations.
-    pub delete_limit: u32,
+    pub delete_limit: usize,
 }
 
 // Repo backend where the FHIR server stores its data/resources.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(tag = "backend", rename_all = "snake_case")]
 pub enum RepoConfig {
     Postgres(PostgresConfig),
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct PostgresConfig {
     pub database_url: String,
     pub max_connections: u32,
 }
 
 // Search backend where the FHIR server stores its search indices.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(tag = "backend", rename_all = "snake_case")]
 pub enum SearchConfig {
     Elasticsearch(ElasticsearchConfig),
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct ElasticsearchConfig {
     pub url: String,
     pub username: String,
     pub password: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(tag = "backend", rename_all = "snake_case")]
 pub enum EmailConfig {
     SendGrid {
@@ -64,22 +70,20 @@ pub enum EmailConfig {
     },
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(default)]
 pub struct RateLimitsConfig {
-    pub max_request_body_size: usize,
-    pub rate_limit_subscriptions: bool, // see note
+    pub rate_limit_subscription_tiers: Option<[usize; 4]>,
     pub rate_limit_window_seconds: u64,
     pub rate_limit_operation_points: u32,
-    pub ip_source: IpSource,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Clone, Deserialize, Serialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum IpSource {
     #[default]
     ConnectInfo,
-    XForwardedFor,
+    CfConnectingIp,
     XRealIp,
 }
 
@@ -100,6 +104,8 @@ impl Default for ServerConfig {
             repo: RepoConfig::default(),
             search: SearchConfig::default(),
             email: None,
+            monitoring: MonitoringConfig::default(),
+            max_request_body_size: 4 * 1024 * 1024,
             rate_limits: RateLimitsConfig::default(),
         }
     }
@@ -135,10 +141,16 @@ impl Default for ElasticsearchConfig {
 impl Default for RateLimitsConfig {
     fn default() -> Self {
         Self {
-            max_request_body_size: 1_048_576,
-            rate_limit_subscriptions: true,
-            rate_limit_window_seconds: 60,
+            rate_limit_subscription_tiers: None,
+            rate_limit_window_seconds: 60 * 60 * 24, // 1 day in seconds
             rate_limit_operation_points: 100,
+        }
+    }
+}
+
+impl Default for MonitoringConfig {
+    fn default() -> Self {
+        Self {
             ip_source: IpSource::default(),
         }
     }
