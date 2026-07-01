@@ -319,6 +319,80 @@ function SearchColumnModal(props: Readonly<SearchColumnModalProps>) {
   );
 }
 
+function TruncatedCell({
+  title,
+  children,
+}: Readonly<{ title?: string; children: React.ReactNode }>) {
+  return (
+    <div className="max-w-[240px] truncate" title={title}>
+      {children}
+    </div>
+  );
+}
+
+function describeHumanName(value: HumanName): string {
+  return (
+    value.text ??
+    [
+      value.prefix?.join(" "),
+      value.given?.join(" "),
+      value.family,
+      value.suffix?.join(" "),
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+function describeAddress(value: Address): string {
+  return [
+    value.line?.join(" "),
+    value.city,
+    value.state,
+    value.postalCode,
+    value.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function describeCoding(value: Coding): string {
+  return (
+    value.display ?? [value.system, value.code].filter(Boolean).join(" | ")
+  );
+}
+
+function describeCodeableConcept(value: CodeableConcept): string {
+  return (
+    value.text ?? (value.coding ?? []).map((c) => describeCoding(c)).join(", ")
+  );
+}
+
+function describeIdentifier(value: Identifier): string {
+  return [value.type?.text, value.system, value.value]
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function describeReference(value: Reference): string {
+  return value.display ?? value.reference ?? "";
+}
+
+function describeQuantity(value: Quantity): string {
+  return [value.value, value.unit].filter((p) => p !== undefined).join(" ");
+}
+
+function describeRange(value: Range): string {
+  return [value.low, value.high]
+    .map((q) => (q ? describeQuantity(q) : undefined))
+    .filter(Boolean)
+    .join(" - ");
+}
+
+function describePeriod(value: Period): string {
+  return [value.start, value.end].filter(Boolean).join(" - ");
+}
+
 /**
  * Conversion pulled from https://hl7.org/fhir/search.html#table.
  * @param searchType The Search Parameter Type
@@ -328,7 +402,11 @@ function DataDisplay(searchType: string, value: unknown[]) {
   switch (searchType) {
     case "number": {
       return (value as number[]).map((v, i) => {
-        return <div key={i}>{v}</div>;
+        return (
+          <TruncatedCell key={i} title={`${v}`}>
+            {v}
+          </TruncatedCell>
+        );
       });
     }
     case "date": {
@@ -336,19 +414,19 @@ function DataDisplay(searchType: string, value: unknown[]) {
         if (typeof v === "object") {
           if (Object.hasOwnProperty.call(v, "start")) {
             return (
-              <div key={i}>
+              <TruncatedCell key={i} title={describePeriod(v as Period)}>
                 <FHIRPeriodReadOnly value={v as Period} />
-              </div>
+              </TruncatedCell>
             );
           } else {
             return (
-              <div key={i}>
+              <TruncatedCell key={i}>
                 <FHIRTimingReadOnly value={v as Timing} />
-              </div>
+              </TruncatedCell>
             );
           }
         }
-        return <div key={i}>{`${v}`}</div>;
+        return <TruncatedCell key={i} title={`${v}`}>{`${v}`}</TruncatedCell>;
       });
     }
     case "string": {
@@ -359,19 +437,19 @@ function DataDisplay(searchType: string, value: unknown[]) {
             Object.hasOwnProperty.call(v, "given")
           ) {
             return (
-              <div key={i}>
+              <TruncatedCell key={i} title={describeHumanName(v as HumanName)}>
                 <FHIRHumanNameReadOnly value={v as HumanName} />
-              </div>
+              </TruncatedCell>
             );
           } else {
             return (
-              <div key={i}>
+              <TruncatedCell key={i} title={describeAddress(v as Address)}>
                 <FHIRAddressReadOnly value={v as Address} />
-              </div>
+              </TruncatedCell>
             );
           }
         }
-        return <div key={i}>{`${v}`}</div>;
+        return <TruncatedCell key={i} title={`${v}`}>{`${v}`}</TruncatedCell>;
       });
     }
     case "token": {
@@ -379,37 +457,43 @@ function DataDisplay(searchType: string, value: unknown[]) {
         if (typeof v === "object") {
           if (Object.hasOwnProperty.call(v, "coding")) {
             return (
-              <div key={i}>
+              <TruncatedCell
+                key={i}
+                title={describeCodeableConcept(v as CodeableConcept)}
+              >
                 <FHIRCodeableConceptReadOnly value={v as CodeableConcept} />
-              </div>
+              </TruncatedCell>
             );
           } else if (Object.hasOwnProperty.call(v, "code")) {
             return (
-              <div key={i}>
+              <TruncatedCell key={i} title={describeCoding(v as Coding)}>
                 <FHIRCodingReadOnly value={v as Coding} />
-              </div>
+              </TruncatedCell>
             );
           } else {
             return (
-              <div key={i}>
+              <TruncatedCell
+                key={i}
+                title={describeIdentifier(v as Identifier)}
+              >
                 <FHIRIdentifierReadOnly value={v as Identifier} />
-              </div>
+              </TruncatedCell>
             );
           }
         }
-        return <div key={i}>{`${v}`}</div>;
+        return <TruncatedCell key={i} title={`${v}`}>{`${v}`}</TruncatedCell>;
       });
     }
     case "reference": {
       return value.map((v, i) => {
         if (typeof v === "object") {
           return (
-            <div key={i}>
+            <TruncatedCell key={i} title={describeReference(v as Reference)}>
               <FHIRReferenceReadOnly value={v as Reference} />
-            </div>
+            </TruncatedCell>
           );
         }
-        return <div key={i}>{`${v}`}</div>;
+        return <TruncatedCell key={i} title={`${v}`}>{`${v}`}</TruncatedCell>;
       });
     }
     case "quantity": {
@@ -417,24 +501,24 @@ function DataDisplay(searchType: string, value: unknown[]) {
         if (typeof v === "object") {
           if (Object.hasOwnProperty.call(v, "value")) {
             return (
-              <div key={i}>
+              <TruncatedCell key={i} title={describeQuantity(v as Quantity)}>
                 <FHIRQuantityReadOnly value={v as Quantity} />
-              </div>
+              </TruncatedCell>
             );
           } else {
             return (
-              <div key={i}>
+              <TruncatedCell key={i} title={describeRange(v as Range)}>
                 <FHIRRangeReadOnly value={v as Range} />
-              </div>
+              </TruncatedCell>
             );
           }
         }
-        return <div key={i}>{`${v}`}</div>;
+        return <TruncatedCell key={i} title={`${v}`}>{`${v}`}</TruncatedCell>;
       });
     }
     case "uri": {
       return value.map((v, i) => {
-        return <div key={i}>{`${v}`}</div>;
+        return <TruncatedCell key={i} title={`${v}`}>{`${v}`}</TruncatedCell>;
       });
     }
     default: {
