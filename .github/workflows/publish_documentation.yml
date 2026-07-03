@@ -57,8 +57,9 @@ jobs:
         run: pnpm generate-documentation
 
       - name: Copy wrangler config
-        working-directory: ./frontend
-        run: cp wrangler/typedoc.wrangler.jsonc ./wrangler.jsonc
+        run: |
+          cp frontend/wrangler/typedoc.wrangler.jsonc ./wrangler.jsonc
+          echo "allowBuilds:\n  sharp: true\n  workerd: true\n  esbuild: true\n  core-js-pure: true\n  core-js: true"
 
       - name: Build & Deploy Worker
         uses: cloudflare/wrangler-action@v4
