@@ -22,9 +22,9 @@ jobs:
         # Tmp delete large file that wrangler chokes on.
         run: cp backend/wrangler/rust-book.wrangler.jsonc ./backend/wrangler.jsonc && rm backend/target/doc/src/haste_fhir_model/r4/generated/terminology.rs.html
       - name: Build & Deploy Worker
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
-          wranglerVersion: "4.50.0"
+          wranglerVersion: "4.107.0"
           workingDirectory: "backend"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -58,9 +58,9 @@ jobs:
         run: cp frontend/wrangler/typedoc.wrangler.jsonc ./wrangler.jsonc
 
       - name: Build & Deploy Worker
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
-          wranglerVersion: "4.50.0"
+          wranglerVersion: "4.107.0"
           packageManager: pnpm
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
