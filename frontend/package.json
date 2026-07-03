@@ -1,18 +1,14 @@
 {
   "name": "@haste-health/frontend",
-  "packageManager": "pnpm@10.24.0",
-  "workspaces": [
-    "packages/*",
-    "artifacts/**/*"
-  ],
+  "packageManager": "pnpm@11.9.0",
   "scripts": {
     "generate-documentation": "pnpm typedoc",
     "ci:publish": "pnpm publish -r",
     "ci:build": "pnpm --recursive run build"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.29.8",
-    "typedoc": "^0.28.15",
-    "typescript": "^5.9.2"
+    "@changesets/cli": "^2.31.0",
+    "typedoc": "^0.28.19",
+    "typescript": "^5.9.3"
   }
 }
