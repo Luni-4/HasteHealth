@@ -10,6 +10,6 @@ RUN pnpm -r run build
 FROM nginx:1.29.3
 
 COPY docker/admin-app/nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY --from=node  /app/packages/admin-app/build /usr/share/nginx/html
+COPY --from=node  /app/packages/admin-app/dist /usr/share/nginx/html
 
 EXPOSE 80
