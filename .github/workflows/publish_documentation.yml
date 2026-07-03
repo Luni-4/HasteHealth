@@ -58,10 +58,9 @@ jobs:
 
       # Need to allowbuilds for latest pnpm to compile properly and ship for wrangler action.
       - name: Copy wrangler config
+        working-directory: ./frontend
         run: |
-          cp frontend/wrangler/typedoc.wrangler.jsonc ./wrangler.jsonc
-          echo "allowBuilds:\n  sharp: true\n  workerd: true\n  esbuild: true\n  core-js-pure: true\n  core-js: true"
-          echo "ignore-workspace-root-check=true" >> .npmrc
+          cp wrangler/typedoc.wrangler.jsonc ./wrangler.jsonc
 
       - name: Build & Deploy Worker
         uses: cloudflare/wrangler-action@v4
