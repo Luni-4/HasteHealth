@@ -3,7 +3,7 @@
   "name": "haste-health-typedoc",
   "compatibility_date": "2025-06-14",
   "assets": {
-    "directory": "./frontend/docs"
+    "directory": "./docs"
   },
   "observability": {
     "enabled": true
