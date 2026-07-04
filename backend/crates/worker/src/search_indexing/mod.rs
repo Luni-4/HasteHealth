@@ -390,6 +390,13 @@ impl IndexingWorker {
             attempts += 1;
         }
 
+        if !search_engine.is_connected().await.is_ok() {
+            return Err(OperationOutcomeError::fatal(
+                haste_fhir_model::r4::generated::terminology::IssueType::Exception(None),
+                "Elasticsearch is not connected after 5 attempts".to_string(),
+            ));
+        }
+
         Ok(Self {
             running: Arc::new(tokio::sync::Mutex::new(true)),
             repo,
@@ -408,7 +415,8 @@ impl Worker for IndexingWorker {
         let mut k = *TOTAL_INDEXED.lock().await;
 
         let repo = self.repo.clone();
-        let search_engine = self.search_engine.clone();
+        let search_engine: Arc<ElasticSearchEngine<ElasticSearchParameterResolver<PGConnection>>> =
+            self.search_engine.clone();
         let running = self.running.clone();
 
         let spawned = tokio::spawn(async move {
