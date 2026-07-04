@@ -277,6 +277,12 @@ impl<SearchParameterResolver: SearchParameterResolve> SearchEngine
             let resources_total = resources.len();
             let search_index_name = get_index_name(&fhir_version)?;
 
+            tracing::trace!(
+                "Indexing {} resources into index: '{}'",
+                resources_total,
+                search_index_name
+            );
+
             for r in resources.into_iter().filter(|r| match r.fhir_method {
                 FHIRMethod::Create | FHIRMethod::Update | FHIRMethod::Delete => true,
                 _ => false,
@@ -344,12 +350,20 @@ impl<SearchParameterResolver: SearchParameterResolve> SearchEngine
             let mut bulk_ops: Vec<BulkOperation<HashMap<String, InsertableIndex>>> =
                 Vec::with_capacity(resources_total);
 
+            tracing::trace!("Awaiting {} indexing tasks.", tasks.len());
+
             for task in tasks {
                 let res = task.await.map_err(|e| {
                     OperationOutcomeError::fatal(IssueType::Exception(None), e.to_string())
                 })??;
                 bulk_ops.push(res);
             }
+
+            tracing::trace!(
+                "Bulk indexing {} resources into index: '{}'",
+                bulk_ops.len(),
+                search_index_name
+            );
 
             if !bulk_ops.is_empty() {
                 let res = client

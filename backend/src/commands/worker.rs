@@ -18,7 +18,7 @@ pub enum WorkerCommands {
 pub async fn worker(command: &Option<WorkerCommands>) -> Result<(), OperationOutcomeError> {
     match command {
         None | Some(WorkerCommands::Worker) => {
-            let config: Arc<search_indexing::WorkerConfig> = Arc::new(
+            let config: Arc<search_indexing::WorkerEnvironment> = Arc::new(
                 Figment::new()
                     .merge(Toml::file("haste.toml"))
                     .merge(Env::prefixed("HASTE_"))

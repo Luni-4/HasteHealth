@@ -106,6 +106,7 @@ async fn index_tenant_next_sequence<
     Repo: ResourceSequential + IndexLockProvider<TenantId, TenantLockIndex>,
     Engine: SearchEngine,
 >(
+    max_concurrent_limit: u64,
     search_client: Arc<Engine>,
     repo: &Repo,
     tenant_id: &TenantId,
@@ -131,7 +132,7 @@ async fn index_tenant_next_sequence<
         .get_sequence(
             tenant_id,
             tenant_locks[0].index_sequence_position as u64,
-            Some(1000),
+            Some(max_concurrent_limit),
         )
         .await?;
 
@@ -218,6 +219,7 @@ async fn index_for_tenant<
     Search: SearchEngine,
     Repository: FHIRRepository + ResourceSequential + IndexLockProvider<TenantId, TenantLockIndex>,
 >(
+    max_concurrent_limit: u64,
     repo: Arc<Repository>,
     search_client: Arc<Search>,
     tenant_id: &TenantId,
@@ -226,7 +228,8 @@ async fn index_for_tenant<
         .transaction(false)
         .await
         .map_err(IndexingWorkerError::from)?;
-    let res = index_tenant_next_sequence(search_client, &tx, &tenant_id).await;
+    let res =
+        index_tenant_next_sequence(max_concurrent_limit, search_client, &tx, &tenant_id).await;
 
     match res {
         Ok(res) => {
@@ -263,6 +266,7 @@ impl From<IndexingWorkerEnvironmentVariables> for String {
 }
 
 pub struct IndexingWorker {
+    max_concurrent_limit: Option<u64>,
     running: Arc<tokio::sync::Mutex<bool>>,
     repo: Arc<PGConnection>,
     search_engine: Arc<ElasticSearchEngine<ElasticSearchParameterResolver<PGConnection>>>,
@@ -270,7 +274,8 @@ pub struct IndexingWorker {
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(default)]
-pub struct WorkerConfig {
+pub struct WorkerEnvironment {
+    pub max_concurrent_limit: Option<u64>,
     pub repo: RepoConfig,
     pub search: SearchConfig,
 }
@@ -302,9 +307,10 @@ pub enum SearchConfig {
     Elasticsearch(ElasticsearchConfig),
 }
 
-impl Default for WorkerConfig {
+impl Default for WorkerEnvironment {
     fn default() -> Self {
         Self {
+            max_concurrent_limit: Some(1000),
             repo: RepoConfig::default(),
             search: SearchConfig::default(),
         }
@@ -379,7 +385,7 @@ async fn create_search_engine(
 }
 
 impl IndexingWorker {
-    pub async fn new(config: Arc<WorkerConfig>) -> Result<Self, OperationOutcomeError> {
+    pub async fn new(config: Arc<WorkerEnvironment>) -> Result<Self, OperationOutcomeError> {
         let repo = create_repo(&config.repo).await?;
         let search_engine = create_search_engine(&config.search, repo.clone()).await?;
 
@@ -398,6 +404,7 @@ impl IndexingWorker {
         }
 
         Ok(Self {
+            max_concurrent_limit: config.max_concurrent_limit,
             running: Arc::new(tokio::sync::Mutex::new(true)),
             repo,
             search_engine,
@@ -418,6 +425,7 @@ impl Worker for IndexingWorker {
         let search_engine: Arc<ElasticSearchEngine<ElasticSearchParameterResolver<PGConnection>>> =
             self.search_engine.clone();
         let running = self.running.clone();
+        let max_concurrent_limit = self.max_concurrent_limit.unwrap_or(1000);
 
         let spawned = tokio::spawn(async move {
             while *running.lock().await {
@@ -432,8 +440,13 @@ impl Worker for IndexingWorker {
                     for tenant in tenants_to_check {
                         tracing::info!("Indexing tenant: '{}'", &tenant.id);
 
-                        let result =
-                            index_for_tenant(repo.clone(), search_engine.clone(), &tenant.id).await;
+                        let result = index_for_tenant(
+                            max_concurrent_limit,
+                            repo.clone(),
+                            search_engine.clone(),
+                            &tenant.id,
+                        )
+                        .await;
 
                         if let Err(_error) = result {
                             tracing::error!(
