@@ -114,8 +114,18 @@ async fn index_tenant_next_sequence<
     let tenant_locks = repo.get_available_locks(vec![tenant_id]).await?;
 
     if tenant_locks.is_empty() {
+        tracing::info!(
+            "No available locks for tenant '{}', skipping indexing.",
+            tenant_id
+        );
         return Ok(());
     }
+
+    tracing::info!(
+        "Acquired lock for tenant '{}', starting indexing from sequence {}.",
+        tenant_id,
+        tenant_locks[0].index_sequence_position
+    );
 
     let resources = repo
         .get_sequence(
@@ -173,6 +183,12 @@ async fn index_tenant_next_sequence<
                 );
             }
 
+            tracing::trace!(
+                "Updating lock for tenant '{}' to sequence position {}.",
+                tenant_id,
+                resource.sequence
+            );
+
             repo.update_lock(
                 &tenant_id,
                 TenantLockIndex {
@@ -183,7 +199,7 @@ async fn index_tenant_next_sequence<
             .await?;
 
             let elapsed = start.elapsed();
-            tracing::info!(
+            tracing::trace!(
                 "Indexed {} resources for tenant '{}' in {:.2?} (up to sequence {})",
                 result.0,
                 tenant_id.as_ref(),
@@ -406,6 +422,8 @@ impl Worker for IndexingWorker {
                     }
 
                     for tenant in tenants_to_check {
+                        tracing::info!("Indexing tenant: '{}'", &tenant.id);
+
                         let result =
                             index_for_tenant(repo.clone(), search_engine.clone(), &tenant.id).await;
 
