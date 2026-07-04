@@ -44,7 +44,7 @@ import Resources from "./views/Project/Resources";
 import VersionView from "./views/Project/Version";
 import Settings from "./views/Project/Settings";
 import Projects from "./views/System/Projects";
-import ViewDefinitionEditor from "./views/Analytics/ViewDefinitionEditor";
+// import ViewDefinitionEditor from "./views/Analytics/ViewDefinitionEditor";
 import { deriveProjectId, deriveTenantId } from "./utilities";
 import * as r4Types from "@haste-health/fhir-types/r4/types";
 import SystemResources from "./views/System";
@@ -268,11 +268,6 @@ const router =
                           id: "settings",
                           path: "settings",
                           element: <Settings />,
-                        },
-                        {
-                          id: "view-definition-editor",
-                          path: "view-definition-editor",
-                          element: <ViewDefinitionEditor />,
                         },
                         {
                           id: "dashboard",
@@ -579,6 +574,19 @@ function ProjectRoot() {
               Client Applications
             </SideBar.SideBarItem>
           </SideBar.SideBarItemGroup>
+          <SideBar.SideBarItemGroup label="Import">
+            <SideBar.SideBarItem
+              active={
+                matches.find((match) => match.id === "bundle-import") !==
+                undefined
+              }
+              onClick={() => {
+                navigate(generatePath("/bundle-import", {}));
+              }}
+            >
+              Bundles
+            </SideBar.SideBarItem>
+          </SideBar.SideBarItemGroup>
           <SideBar.SideBarItemGroup label="Configuration">
             <SideBar.SideBarItem
               active={matches[0].params.resourceType === "OperationDefinition"}
@@ -605,33 +613,21 @@ function ProjectRoot() {
               Subscriptions
             </SideBar.SideBarItem>
           </SideBar.SideBarItemGroup>
-          <SideBar.SideBarItemGroup label="Import">
+
+          <SideBar.SideBarItemGroup label="Analytics">
             <SideBar.SideBarItem
-              active={
-                matches.find((match) => match.id === "bundle-import") !==
-                undefined
-              }
+              active={matches[0].params.resourceType === "ViewDefinition"}
               onClick={() => {
-                navigate(generatePath("/bundle-import", {}));
-              }}
-            >
-              Bundles
-            </SideBar.SideBarItem>
-          </SideBar.SideBarItemGroup>
-          {/* <SideBar.SideBarItemGroup label="Analytics">
-            <SideBar.SideBarItem
-              active={
-                matches.find(
-                  (match) => match.id === "view-definition-editor",
-                ) !== undefined
-              }
-              onClick={() => {
-                navigate(generatePath("/view-definition-editor", {}));
+                navigate(
+                  generatePath("/resources/:resourceType", {
+                    resourceType: "ViewDefinition",
+                  }),
+                );
               }}
             >
               Projection
             </SideBar.SideBarItem>
-          </SideBar.SideBarItemGroup> */}
+          </SideBar.SideBarItemGroup>
           <SideBar.SideBarItemGroup label="Data">
             <SideBar.SideBarItem
               active={
@@ -640,6 +636,7 @@ function ProjectRoot() {
                 matches.find(
                   (match) =>
                     match.id === "types" &&
+                    match.params.resourceType !== "ViewDefinition" &&
                     match.params.resourceType !== "OperationDefinition" &&
                     match.params.resourceType !== "Subscription" &&
                     match.params.resourceType !== "Questionnaire" &&
