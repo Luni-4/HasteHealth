@@ -179,6 +179,7 @@ struct ClientState<
     repo: Arc<Repo>,
     search: Arc<Search>,
     terminology: Arc<Terminology>,
+    audit_repo: Option<Arc<Repo>>,
     config: Arc<ServerConfig>,
 }
 
@@ -302,6 +303,7 @@ pub struct ServerClientConfig<
     Terminology: FHIRTerminology + Send + Sync + 'static,
 > {
     pub repo: Arc<Repo>,
+    pub audit_repo: Option<Arc<Repo>>,
     pub search: Arc<Search>,
     pub terminology: Arc<Terminology>,
     pub mutate_artifacts: bool,
@@ -322,6 +324,7 @@ impl<
     ) -> Self {
         ServerClientConfig {
             repo,
+            audit_repo: None,
             search,
             terminology,
             mutate_artifacts: false,
@@ -331,6 +334,11 @@ impl<
 
     pub fn with_mutate_artifacts(mut self, mutate_artifacts: bool) -> Self {
         self.mutate_artifacts = mutate_artifacts;
+        self
+    }
+
+    pub fn with_audit_repo(mut self, audit_repo: Option<Arc<Repo>>) -> Self {
+        self.audit_repo = audit_repo;
         self
     }
 }
@@ -427,39 +435,24 @@ impl<
             },
         ]));
 
-        let mut root_middleware: Vec<
-            Box<
-                dyn MiddlewareChain<
-                        Arc<ClientState<Repo, Search, Terminology>>,
-                        Arc<ServerCTX<FHIRServerClient<Repo, Search, Terminology>>>,
-                        FHIRRequest,
-                        FHIRResponse,
-                        OperationOutcomeError,
-                    >,
-            >,
-        > = vec![
-            Box::new(middleware::tenant_tier_limits::Middleware::new()),
-            Box::new(middleware::rate_limit::Middleware::new()),
-            Box::new(middleware::auth_z::scope_check::SMARTScopeAccessMiddleware::new()),
-            Box::new(middleware::auth_z::access_control::AccessControlMiddleware::new()),
-            Box::new(middleware::validation::Middleware::new()),
-            Box::new(route_middleware),
-            Box::new(middleware::capabilities::Middleware::new()),
-        ];
-
-        if config.config.monitoring.audit_enabled {
-            tracing::info!("Audit logging is enabled. All requests will be logged.");
-            root_middleware.insert(0, Box::new(middleware::auditing::Middleware::new()));
-        }
-
         FHIRServerClient {
             state: Arc::new(ClientState {
                 repo: config.repo,
+                audit_repo: config.audit_repo,
                 search: config.search,
                 terminology: config.terminology,
                 config: config.config,
             }),
-            middleware: Middleware::new(root_middleware),
+            middleware: Middleware::new(vec![
+                Box::new(middleware::auditing::Middleware::new()),
+                Box::new(middleware::tenant_tier_limits::Middleware::new()),
+                Box::new(middleware::rate_limit::Middleware::new()),
+                Box::new(middleware::auth_z::scope_check::SMARTScopeAccessMiddleware::new()),
+                Box::new(middleware::auth_z::access_control::AccessControlMiddleware::new()),
+                Box::new(middleware::validation::Middleware::new()),
+                Box::new(route_middleware),
+                Box::new(middleware::capabilities::Middleware::new()),
+            ]),
         }
     }
 }
