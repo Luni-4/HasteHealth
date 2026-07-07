@@ -202,7 +202,6 @@ pub async fn server(
         "/oidc",
         auth_n::oidc::routes::create_router(shared_state.clone()),
     );
-
     // .nest(
     //     "/mfa",
     //     auth_n::mfa::routes::create_router(shared_state.clone()),
