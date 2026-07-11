@@ -202,14 +202,14 @@ pub async fn server(
         "/oidc",
         auth_n::oidc::routes::create_router(shared_state.clone()),
     );
-    // .nest(
-    //     "/mfa",
-    //     auth_n::mfa::routes::create_router(shared_state.clone()),
-    // );
 
     let tenant_router = Router::new()
         .nest("/auth", auth_n::tenant::routes::create_router())
         .nest("/{project}/api/v1", project_router)
+        // .nest(
+        //     "/mfa",
+        //     auth_n::mfa::routes::create_router(shared_state.clone()),
+        // )
         .layer(
             // Relies on tenant for html so moving operation outcome error handling to here.
             ServiceBuilder::new()
@@ -261,9 +261,7 @@ pub async fn server(
                 )
                 .layer(
                     CorsLayer::new()
-                        // allow `GET` and `POST` when accessing the resource
                         .allow_methods(Any)
-                        // allow requests from any origin
                         .allow_origin(Any)
                         .allow_headers(Any),
                 ),
