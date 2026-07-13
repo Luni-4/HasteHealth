@@ -2,7 +2,7 @@ import re
 import os
 
 # CONFIGURATION
-FILE_INPUT = "terminology.rs"  # Rename this to your actual 240,000-line FHIR file
+FILE_INPUT = "resources.rs"  # Rename this to your actual 240,000-line FHIR file
 TARGET_LINES_PER_FILE = 2400    # Desired length for each chunk
 
 def split_fhir_file_massive(input_path, lines_per_file=2400):
@@ -86,8 +86,8 @@ def split_fhir_file_massive(input_path, lines_per_file=2400):
     # 3. Write the split files using the "terminology_000.rs" naming convention
     generated_modules = []
     for i, chunk in enumerate(chunks):
-        file_name = f"terminology_{i:03d}.rs"
-        generated_modules.append(f"terminology_{i:03d}")
+        file_name = f"resources_{i:03d}.rs"
+        generated_modules.append(f"resources_{i:03d}")
 
         with open(file_name, "w", encoding='utf-8') as out:
             out.write("".join(header))
