@@ -1,3 +1,14 @@
+//! MetaValue implementations for Rust primitive and standard types.
+//!
+//! Provides trait implementations for `i64`, `u64`, `f64`, `bool`, `String`, `&'static str`,
+//! `Vec<T>`, `Option<T>`, and `Box<T>`, enabling runtime reflection on primitive and standard collections.
+//!
+//! Mapped FHIR types:
+//! - `i64`, `u64` → System.Integer
+//! - `f64` → System.Decimal
+//! - `bool` → System.Boolean
+//! - `String`, `&str` → System.String
+
 use crate::traits::MetaValue;
 use std::any::Any;
 

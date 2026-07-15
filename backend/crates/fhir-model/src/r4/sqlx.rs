@@ -7,6 +7,19 @@ use sqlx::{
 };
 use std::io::Write;
 
+/// FHIR resource wrapper for SQLx JSONB serialization.
+///
+/// This type implements SQLx trait bounds to enable automatic serialization and
+/// deserialization of FHIR resources to/from PostgreSQL JSONB columns.
+///
+/// # Generic Parameters
+/// * `T` - The FHIR type to serialize/deserialize (typically a `Resource` enum variant)
+///
+/// # Example
+/// ```ignore
+/// let resource: FHIRJson<Patient> = FHIRJson(patient_data);
+/// // Can now be used with sqlx query parameters
+/// ```
 #[derive(Debug, Clone)]
 pub struct FHIRJson<T: ?Sized>(pub T);
 
@@ -23,6 +36,10 @@ where
     }
 }
 
+/// Decoder implementation for FHIR resources from PostgreSQL JSONB.
+///
+/// Handles the PostgreSQL JSONB binary format by stripping the first byte marker
+/// and deserializing the remaining JSON data.
 impl<'r, T: 'r> Decode<'r, Postgres> for FHIRJson<T>
 where
     T: serde::Serialize + serde::Deserialize<'r>,
@@ -36,7 +53,27 @@ where
 }
 
 // More effecient impl to avoid cloning the value. No need to own as writing bytes and non mutating.
+
+/// Reference wrapper for FHIR resources optimized for SQLx encoding.
+///
+/// Similar to [`FHIRJson`] but holds a reference instead of ownership. This avoids
+/// cloning when encoding FHIR resources to PostgreSQL JSONB columns, improving
+/// performance for repeated queries.
+///
+/// # Generic Parameters
+/// * `'a` - The lifetime of the reference to the FHIR type
+/// * `T` - The FHIR type to serialize (typically a `Resource` enum variant)
+///
+/// # Example
+/// ```ignore
+/// let resource: FHIRJsonRef<Patient> = FHIRJsonRef(&patient_data);
+/// // Can now be used with sqlx query parameters without cloning
+/// ```
 pub struct FHIRJsonRef<'a, T: ?Sized>(pub &'a T);
+
+/// SQLx type information for FHIR resource references.
+///
+/// Specifies that this type maps to PostgreSQL JSONB binary format.
 impl<'a, T> sqlx::Type<Postgres> for FHIRJsonRef<'a, T>
 where
     T: serde::Serialize + serde::de::DeserializeOwned,
@@ -50,6 +87,11 @@ where
     }
 }
 
+/// Encoder implementation for FHIR resource references to PostgreSQL JSONB.
+///
+/// Serializes the referenced FHIR resource to JSON and writes it to the PostgreSQL
+/// buffer with the JSONB format marker. This implementation avoids cloning for
+/// better performance in repeated query operations.
 impl<'q, T> Encode<'q, Postgres> for FHIRJsonRef<'q, T>
 where
     T: serde::Serialize + serde::de::DeserializeOwned,
@@ -74,6 +116,10 @@ where
     }
 }
 
+/// Decoder for ResourceType enum from database strings.
+///
+/// Converts PostgreSQL string values into FHIR ResourceType enum variants,
+/// supporting any database backend that implements string decoding.
 impl<'r, DB: Database> Decode<'r, DB> for ResourceType
 where
     &'r str: Decode<'r, DB>,

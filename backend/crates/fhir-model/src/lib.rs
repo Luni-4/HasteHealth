@@ -1,3 +1,9 @@
+//! FHIR model definitions and utilities.
+//!
+//! This crate provides Rust representations of FHIR resources and types for R4 (Release 4)
+//! of the Fast Healthcare Interoperability Resources standard. It includes serialization,
+//! deserialization, and conversion utilities.
+
 pub mod r4;
 
 #[cfg(test)]

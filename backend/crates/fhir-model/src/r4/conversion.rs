@@ -6,13 +6,19 @@ use haste_reflect::MetaValue;
 use std::{collections::HashSet, sync::LazyLock};
 use thiserror::Error;
 
+/// Error type for type downcasting operations.
+///
+/// Returned when a [`MetaValue`] cannot be successfully downcast to the target type.
 #[derive(Error, Debug)]
 pub enum DowncastError {
     #[error("Failed to downcast value to type '{0}'")]
     FailedDowncast(String),
 }
 
-/// Number types to use in FHIR evaluation
+/// FHIR number types recognized in FHIRPath evaluation.
+///
+/// Includes all integer, decimal, and unsigned integer variants that can be used
+/// in FHIRPath expressions and their FHIRPath system type equivalents.
 pub static NUMBER_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut m = HashSet::new();
     m.insert("integer");
@@ -24,6 +30,9 @@ pub static NUMBER_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     m
 });
 
+/// FHIR boolean types recognized in FHIRPath evaluation.
+///
+/// Includes the core boolean type and its FHIRPath system type equivalent.
 pub static BOOLEAN_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut m = HashSet::new();
     m.insert("boolean");
@@ -31,6 +40,10 @@ pub static BOOLEAN_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     m
 });
 
+/// FHIR temporal types recognized in FHIRPath evaluation.
+///
+/// Includes all date, time, and datetime variants that can be used in FHIRPath
+/// expressions and their FHIRPath system type equivalents.
 pub static DATE_TIME_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut m = HashSet::new();
     m.insert("date");
@@ -44,6 +57,10 @@ pub static DATE_TIME_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     m
 });
 
+/// FHIR string types recognized in FHIRPath evaluation.
+///
+/// Includes all string-like types: base64Binary, canonical, id, code, string,
+/// oid, uri, url, uuid, and xhtml, plus their FHIRPath system type equivalent.
 pub static STRING_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut m = HashSet::new();
     m.insert("base64Binary");
@@ -62,6 +79,9 @@ pub static STRING_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     m
 });
 
+/// All FHIR primitive types recognized in FHIRPath evaluation.
+///
+/// Union of NUMBER_TYPES, BOOLEAN_TYPES, DATE_TIME_TYPES, and STRING_TYPES.
 pub static PRIMITIVE_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut res = BOOLEAN_TYPES.clone();
     res.extend(NUMBER_TYPES.iter().map(|s| *s));
@@ -71,6 +91,15 @@ pub static PRIMITIVE_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     res
 });
 
+/// Downcast a [`MetaValue`] to a boolean.
+///
+/// Handles both FHIR boolean types and FHIRPath System.Boolean types.
+///
+/// # Arguments
+/// * `value` - The meta value to downcast
+///
+/// # Returns
+/// The boolean value or an error if the type cannot be downcasted.
 pub fn downcast_bool(value: &dyn MetaValue) -> Result<bool, DowncastError> {
     match value.fhir_type() {
         "http://hl7.org/fhirpath/System.Boolean" => value
@@ -89,6 +118,16 @@ pub fn downcast_bool(value: &dyn MetaValue) -> Result<bool, DowncastError> {
     }
 }
 
+/// Downcast a [`MetaValue`] to a string.
+///
+/// Handles all FHIR string-like types including code, uri, url, id, etc.,
+/// and FHIRPath System.String type. Recursively calls itself for FHIR primitive types.
+///
+/// # Arguments
+/// * `value` - The meta value to downcast
+///
+/// # Returns
+/// The string value or an error if the type cannot be downcasted.
 pub fn downcast_string(value: &dyn MetaValue) -> Result<String, DowncastError> {
     match value.fhir_type() {
         "canonical" | "base64Binary" | "code" | "string" | "oid" | "uri" | "url" | "uuid"
@@ -104,6 +143,17 @@ pub fn downcast_string(value: &dyn MetaValue) -> Result<String, DowncastError> {
     }
 }
 
+/// Downcast a [`MetaValue`] to a numeric value (f64).
+///
+/// Handles all FHIR numeric types (integer, decimal, positiveInt, unsignedInt),
+/// and FHIRPath System.Integer and System.Decimal types. Recursively calls itself
+/// for FHIR primitive types.
+///
+/// # Arguments
+/// * `value` - The meta value to downcast
+///
+/// # Returns
+/// The numeric value as f64 or an error if the type cannot be downcasted.
 pub fn downcast_number(value: &dyn MetaValue) -> Result<f64, DowncastError> {
     match value.fhir_type() {
         "integer" => {
@@ -151,6 +201,17 @@ pub fn downcast_number(value: &dyn MetaValue) -> Result<f64, DowncastError> {
     }
 }
 
+/// Downcast a [`MetaValue`] to a datetime string representation.
+///
+/// Handles all FHIR temporal types (date, dateTime, instant, time) and FHIRPath
+/// System.Date, System.DateTime, System.Instant, and System.Time types.
+/// Returns the string representation of the datetime value.
+///
+/// # Arguments
+/// * `value` - The meta value to downcast
+///
+/// # Returns
+/// The string representation of the datetime or an error if the type cannot be downcasted.
 pub fn downcast_datetime(value: &dyn MetaValue) -> Result<String, DowncastError> {
     // For simplicity, we will just downcast to string for date and datetime types, as FHIRPath evaluation only requires string representation of dates.
     match value.fhir_type() {
