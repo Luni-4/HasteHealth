@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  rustfmt:
+  rustfmt-clippy:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,16 +19,20 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: clippy, rustfmt
 
       - name: Run rustfmt
         run: cargo fmt --all -- --check --verbose
         working-directory: ./backend
 
+      - name: Run cargo clippy
+        run: cargo clippy --all-targets -- -Dclippy::all -Dclippy::pedantic
+        working-directory: ./backend/crates/fhir-model
+
   build:
     runs-on: ubuntu-latest
 
-    needs: rustfmt
+    needs: rustfmt-clippy
 
     steps:
       - uses: actions/checkout@v7
