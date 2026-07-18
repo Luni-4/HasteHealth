@@ -18,6 +18,7 @@ password = "elastic"
 audit_enabled = false
 
 [security]
+publicize_fhir_metadata = true
 aes_key = "AES_KEY"
 certification_key = "CERTIFICATE_KEY"
 
