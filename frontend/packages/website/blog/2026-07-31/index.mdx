@@ -1,0 +1,68 @@
+---
+slug: feature-updates/july-2026-feature-updates
+title: July 2026 Feature Updates
+authors: [ralph-parkison]
+tags: [hastehealth, feature-update]
+---
+
+July was an authentication and hardening month: multi-factor authentication landed end to end, CSRF protections were added across the interaction and OIDC flows, password hashing moved to argon2, and the frontend build pipeline was migrated to Vite. Auditing middleware and a public metadata endpoint also shipped, alongside a big pass on workspace dependency hygiene.
+
+## Authentication and Security
+
+### Multi-factor authentication, end to end
+- A new `encryption` crate landed first, with pluggable encryptor providers (AWS, GCP, environment) behind a shared trait, later reorganized into an `encryption` submodule and extended with AES support.
+- A `user_mfa` table and repository layer (`backend/crates/repository/src/pg/mfa.rs`) were added, followed by MFA admin CRUD routes, an activation route, and a TOTP verification route wired into the login flow.
+- The login process now checks for and enforces MFA, with the frontend admin app growing MFA administration screens and a `otp_code.js` helper for code entry.
+- PRs: [#785](https://github.com/HasteHealth/HasteHealth/pull/785), [#786](https://github.com/HasteHealth/HasteHealth/pull/786), [#787](https://github.com/HasteHealth/HasteHealth/pull/787), [#788](https://github.com/HasteHealth/HasteHealth/pull/788), [#799](https://github.com/HasteHealth/HasteHealth/pull/799), [#804](https://github.com/HasteHealth/HasteHealth/pull/804), [#807](https://github.com/HasteHealth/HasteHealth/pull/807).
+
+### CSRF and session hardening
+- A synchronizer token pattern was added across the global login, signup, and tenant-select routes via a new `csrf_token` extractor, then extended to the OIDC authorize, interaction login, password reset, and scope routes.
+- Authorization session state was reworked into explicit enums, tightening how the OIDC authorize, federated callback, interaction login/logout, and scope routes track session progress.
+- Password hashing was migrated from the previous scheme to argon2 in the user repository.
+- PRs: [#800](https://github.com/HasteHealth/HasteHealth/pull/800), [#801](https://github.com/HasteHealth/HasteHealth/pull/801), [#802](https://github.com/HasteHealth/HasteHealth/pull/802), [#775](https://github.com/HasteHealth/HasteHealth/pull/775).
+
+## Backend Changes
+
+### Auditing and public metadata
+- A new auditing middleware (`fhir_client/middleware/auditing.rs`) was added and wired into the FHIR client pipeline and MCP routes, disabled by default and gated by config, with a follow-up pass fixing storage/transaction interplay and re-enabling it.
+- `cargo-audit` was added as a CI workflow to catch vulnerable dependencies on every push.
+- The server capabilities/metadata endpoint gained a config flag to expose it publicly without authentication.
+- PRs: [#774](https://github.com/HasteHealth/HasteHealth/pull/774), [#783](https://github.com/HasteHealth/HasteHealth/pull/783), [#784](https://github.com/HasteHealth/HasteHealth/pull/784), [#812](https://github.com/HasteHealth/HasteHealth/pull/812).
+
+### Reliability and dependency hygiene
+- Panics in request handlers are now caught rather than taking down the server, via a new panic-catching layer in `server.rs`.
+- The workspace's Cargo dependencies were deduplicated and pulled up to shared workspace versions, trimming `Cargo.lock` substantially and removing an unused dependency.
+- License metadata was corrected across several backend crates and frontend packages.
+- Generated terminology structs were migrated to snake_case const codes, touching the codegen templates, generated FHIR terminology, and downstream consumers in `access-control`, `fhir-client`, and `fhir-profiling`.
+- Import ordering in generated code was fixed to conform to `rustfmt`, and the workspace was brought under a rustfmt CI check with a full formatting pass.
+- Sentry gained panic, backtrace, and transport features for better crash visibility.
+- PRs: [#776](https://github.com/HasteHealth/HasteHealth/pull/776), [#803](https://github.com/HasteHealth/HasteHealth/pull/803), [#806](https://github.com/HasteHealth/HasteHealth/pull/806), [#810](https://github.com/HasteHealth/HasteHealth/pull/810), [#813](https://github.com/HasteHealth/HasteHealth/pull/813), [#808](https://github.com/HasteHealth/HasteHealth/pull/808), [#809](https://github.com/HasteHealth/HasteHealth/pull/809).
+
+## Product and UX
+
+### ViewDefinition editor follow-ups
+- The Analytics ViewDefinition editor picked up an onchange-driven alteration flow and simplified `sql-on-fhir` component internals.
+- The editor's resource view was reworked into a dedicated `ViewDefinition` view with a read-only mode and improved field grouping.
+- PRs: [#773](https://github.com/HasteHealth/HasteHealth/pull/773), [#782](https://github.com/HasteHealth/HasteHealth/pull/782).
+
+## Platform and Tooling
+
+### Frontend build migration
+- The admin app moved from its previous bundler to Vite, replacing the old public `index.html`/config setup with `vite.config.ts` and updating Docker/nginx wiring to match.
+- Storybook was upgraded across the components package, and a dedicated `frontend_build` CI workflow and `frontend_audit` workflow were added, alongside a TypeScript version bump and inquirer bump.
+- PRs: [#778](https://github.com/HasteHealth/HasteHealth/pull/778), [#777](https://github.com/HasteHealth/HasteHealth/pull/777), [#779](https://github.com/HasteHealth/HasteHealth/pull/779), [#780](https://github.com/HasteHealth/HasteHealth/pull/780), [#781](https://github.com/HasteHealth/HasteHealth/pull/781).
+
+### Local dev and deployment
+- The local `docker-compose` setup switched to a generic Elasticsearch image so it also runs on non-`arm64` hosts, and the Docker base image was bumped to 1.97.0.
+- The experimental `wal_worker` crate was pinned and then pulled back out of the backend build while it's still being hardened.
+- Module functions in the binary crate were made private where they didn't need to be public, tightening the crate's API surface.
+- PRs: [#790](https://github.com/HasteHealth/HasteHealth/pull/790), [#793](https://github.com/HasteHealth/HasteHealth/pull/793), [#798](https://github.com/HasteHealth/HasteHealth/pull/798), [#792](https://github.com/HasteHealth/HasteHealth/pull/792), [#796](https://github.com/HasteHealth/HasteHealth/pull/796), [#795](https://github.com/HasteHealth/HasteHealth/pull/795).
+
+## Standalone Commits (No PR Link)
+
+- Worker/deployment wiring: wrangler configuration, directory, and Docker image fixes for the admin app, plus added logging and connectivity checks on the tracing worker.
+- Version bump: [`54aa1e5ed`](https://github.com/HasteHealth/HasteHealth/commit/54aa1e5ed).
+
+## Contributors
+
+Thanks to [Luni-4](https://github.com/Luni-4) for contributions this month, including fixing local project builds on non-`arm64` hosts and a stale `deno_core` pin ([#790](https://github.com/HasteHealth/HasteHealth/pull/790)), making `docker-compose` more portable ([#793](https://github.com/HasteHealth/HasteHealth/pull/793)), tightening module visibility in the binary crate ([#795](https://github.com/HasteHealth/HasteHealth/pull/795)), deduplicating the Cargo workspace's dependencies ([#803](https://github.com/HasteHealth/HasteHealth/pull/803)), and bringing the whole workspace under a consistent `rustfmt` style ([#808](https://github.com/HasteHealth/HasteHealth/pull/808)).
