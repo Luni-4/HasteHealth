@@ -42,20 +42,35 @@ fn flatten_concepts(contains: ValueSetExpansionContains) -> BTreeMap<String, Cod
     codes
 }
 
-fn format_string(id: &str) -> String {
-    let safe_string = id
-        .split('-')
-        .map(|id| capitalize(id))
+fn camelcase_to_snake_case(s: &str) -> String {
+    let mut snake_case = String::new();
+    for (i, c) in s.chars().enumerate() {
+        // Verify that the character is uppercase and not the first character, and the next character is not uppercase
+        if i != s.len() - 1
+            && c.is_uppercase()
+            && i > 0
+            && !s.chars().nth(i + 1).unwrap().is_uppercase()
+        {
+            snake_case.push('_');
+        }
+        snake_case.push(c.to_ascii_lowercase());
+    }
+    snake_case
+}
+
+fn camelcase_with_split(identifier: &str, split: char, join: Option<&str>) -> String {
+    identifier
+        .split(split)
+        .map(|identifier| capitalize(identifier))
         .collect::<Vec<_>>()
-        .join("")
-        .split(':')
-        .map(|id| capitalize(id))
-        .collect::<Vec<_>>()
-        .join("_")
-        .split('/')
-        .map(|id| capitalize(id))
-        .collect::<Vec<_>>()
-        .join("_")
+        .join(join.unwrap_or(""))
+}
+
+fn identifier_encode_special_characters(identifier: &str) -> String {
+    let safe_string = camelcase_with_split(&identifier, ':', Some("_"));
+    let safe_string = camelcase_with_split(&safe_string, '/', Some("_"));
+
+    let safe_string = safe_string
         // Replacements
         .replace(" ", "")
         .replace("<", "Greater")
@@ -73,7 +88,7 @@ fn format_string(id: &str) -> String {
         .join("");
 
     if safe_string.is_empty() {
-        println!("Invalid '{}'", id);
+        println!("Invalid '{}'", identifier);
         panic!();
     }
 
@@ -88,10 +103,25 @@ fn format_string(id: &str) -> String {
     }
 }
 
-fn generate_enum_variants(value_set: ValueSet) -> Option<TokenStream> {
+fn format_term_struct_name(identifier: &str) -> String {
+    let safe_string = identifier_encode_special_characters(identifier);
+    let safe_string = camelcase_with_split(&safe_string, '-', None);
+
+    safe_string
+}
+
+fn format_const_code_name(identifier: &str) -> String {
+    let safe_string = identifier_encode_special_characters(&identifier);
+    let safe_string = camelcase_to_snake_case(&safe_string);
+    let safe_string = camelcase_with_split(&safe_string, '-', Some("_"));
+
+    safe_string
+}
+
+fn generate_const_variants(value_set: ValueSet) -> Option<TokenStream> {
     let terminology_enum_name = format_ident!(
         "{}",
-        format_string(&value_set.id.clone().expect("ValueSet must have an id"))
+        format_term_struct_name(&value_set.id.clone().expect("ValueSet must have an id"))
     );
     let terminology_url = value_set
         .url
@@ -120,7 +150,7 @@ fn generate_enum_variants(value_set: ValueSet) -> Option<TokenStream> {
         let code_vec = codes.iter().map(|c| &c.code).collect::<Vec<_>>();
 
         let const_variants = codes.iter().enumerate().map(|(i, c)| {
-            let variant_name = format_ident!("{}", &format_string(&c.code).to_uppercase());
+            let variant_name = format_ident!("{}", &format_const_code_name(&c.code).to_uppercase());
             let display = c.description.as_ref().map(|d| d.as_str()).unwrap_or("");
             let index = i as u16;
 
@@ -269,7 +299,7 @@ impl CanonicalResolver for InlineResolver {
                 Ok(Some(resource.clone()))
             } else {
                 Err(OperationOutcomeError::error(
-                    IssueType::NOTFOUND,
+                    IssueType::NOT_FOUND,
                     format!("Could not resolve canonical url: {}", url),
                 ))
             }
@@ -543,7 +573,7 @@ pub async fn generate(
                     )
                     .await;
                 if let Ok(expanded_valueset) = expanded_valueset
-                    && let Some(code_enum_code) = generate_enum_variants(expanded_valueset.return_)
+                    && let Some(code_enum_code) = generate_const_variants(expanded_valueset.return_)
                 {
                     inlined_terminologies.insert(
                         valueset
@@ -553,7 +583,9 @@ pub async fn generate(
                             .value
                             .clone()
                             .expect("VS must have url"),
-                        format_string(&valueset.id.clone().expect("ValueSet must have an id")),
+                        format_term_struct_name(
+                            &valueset.id.clone().expect("ValueSet must have an id"),
+                        ),
                     );
                     codes.push(code_enum_code);
                 }
