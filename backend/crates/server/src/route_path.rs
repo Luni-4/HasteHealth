@@ -61,10 +61,7 @@ pub fn api_fhir_root_url(
 ) -> Result<Url, OperationOutcomeError> {
     let api_url = Url::parse(&api_url_string).map_err(|e| {
         tracing::error!("Failed to parse API URL: {:?}", e);
-        OperationOutcomeError::error(
-            IssueType::Invalid(None),
-            "Invalid API URL configured".to_string(),
-        )
+        OperationOutcomeError::error(IssueType::INVALID, "Invalid API URL configured".to_string())
     })?;
 
     let fhir_url = api_url
@@ -77,7 +74,7 @@ pub fn api_fhir_root_url(
         .map_err(|e| {
             tracing::error!("Failed to derive FHIR URL: {:?}", e);
             OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 "Invalid API URL configured".to_string(),
             )
         })?;

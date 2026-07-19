@@ -36,7 +36,7 @@ fn convert_bundle_entry(fhir_response: Result<FHIRResponse, OperationOutcomeErro
                     response: Some(BundleEntryResponse {
                         outcome: Some(Box::new(Resource::OperationOutcome(
                             OperationOutcomeError::error(
-                                IssueType::NotFound(None),
+                                IssueType::NOTFOUND,
                                 "Resource not found".to_string(),
                             )
                             .outcome()
@@ -145,10 +145,10 @@ pub fn bundle_entry_to_fhir_request(
             .unwrap_or_default();
 
         let (path, query) = url.split_once("?").unwrap_or((url, ""));
-        let request_method_string: Option<String> = request.method.as_ref().into();
+        let request_method_string = request.method.as_str();
         let Ok(method) = Method::from_str(&request_method_string.unwrap_or_default()) else {
             return Err(OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 "Invalid HTTP Method".to_string(),
             ));
         };
@@ -172,7 +172,7 @@ pub fn bundle_entry_to_fhir_request(
         Ok(fhir_request)
     } else {
         Err(OperationOutcomeError::error(
-            IssueType::Invalid(None),
+            IssueType::INVALID,
             "Bundle entry missing request".to_string(),
         ))
     }
@@ -194,7 +194,7 @@ pub async fn process_batch_bundle<
     }
 
     Ok(Bundle {
-        type_: Box::new(BundleType::BatchResponse(None)),
+        type_: BundleType::BATCHRESPONSE,
         entry: Some(bundle_response_entries),
         ..Default::default()
     })
@@ -291,7 +291,7 @@ pub async fn build_sorted_transaction_graph<'a>(
 
     let topo_sort_ordering = toposort(&graph, None).map_err(|e| {
         OperationOutcomeError::fatal(
-            IssueType::Exception(None),
+            IssueType::EXCEPTION,
             format!(
                 "Cyclic dependency detected in transaction bundle at node {:?}",
                 e.node_id()
@@ -347,7 +347,7 @@ pub async fn process_transaction_bundle<
 
         let sorted_transaction_entry = entry.ok_or_else(|| {
             OperationOutcomeError::fatal(
-                IssueType::Exception(None),
+                IssueType::EXCEPTION,
                 "Failed to get node from graph".to_string(),
             )
         })?;
@@ -377,7 +377,7 @@ pub async fn process_transaction_bundle<
                 }
             } else {
                 return Err(OperationOutcomeError::fatal(
-                    IssueType::Exception(None),
+                    IssueType::EXCEPTION,
                     "Failed to update reference - response did not return valid resource with an id."
                         .to_string(),
                 ));
@@ -393,7 +393,7 @@ pub async fn process_transaction_bundle<
     };
 
     Ok(Bundle {
-        type_: Box::new(BundleType::TransactionResponse(None)),
+        type_: BundleType::TRANSACTIONRESPONSE,
         entry: Some(response_entries),
         ..Default::default()
     })

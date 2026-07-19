@@ -45,7 +45,7 @@ pub fn delete_approved_scope_op<
                 Box::pin(async move {
                     let client_id = input.client_id.value.ok_or_else(|| {
                         OperationOutcomeError::error(
-                            IssueType::Exception(None),
+                            IssueType::EXCEPTION,
                             "Must provide client_id".to_string(),
                         )
                     })?;
@@ -64,8 +64,8 @@ pub fn delete_approved_scope_op<
                     Ok(HasteHealthDeleteScope::Output {
                         return_: OperationOutcome {
                             issue: vec![OperationOutcomeIssue {
-                                severity: Box::new(IssueSeverity::Information(None)),
-                                code: Box::new(IssueType::Informational(None)),
+                                severity: IssueSeverity::INFORMATION,
+                                code: IssueType::INFORMATIONAL,
                                 diagnostics: Some(Box::new(FHIRString {
                                     value: Some(format!(
                                         "Deleted approved scope for client '{}'",

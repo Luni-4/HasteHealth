@@ -4,7 +4,7 @@ use haste_codegen::{traversal, utilities::extract};
 use haste_fhir_client::canonical_resolver::CanonicalResolver;
 use haste_fhir_model::r4::generated::{
     resources::{OperationOutcomeIssue, ResourceType},
-    terminology::{IssueSeverity, IssueType},
+    terminology::{BoundCode, IssueSeverity, IssueType},
     types::{ElementDefinition, FHIRString},
 };
 use haste_fhir_operation_error::OperationOutcomeError;
@@ -65,7 +65,7 @@ async fn validate_types_and_profiles_if_present<'a>(
                         .await?
                         .ok_or_else(|| {
                             OperationOutcomeError::error(
-                                IssueType::Exception(None),
+                                IssueType::EXCEPTION,
                                 format!(
                                     "Failed to resolve profile canonical: {}",
                                     profile_canonical
@@ -96,8 +96,8 @@ async fn validate_types_and_profiles_if_present<'a>(
     } else {
         Ok(vec![outcome_issue(
             &Path::new(),
-            IssueSeverity::Error(None),
-            IssueType::Value(None),
+            IssueSeverity::ERROR,
+            IssueType::VALUE,
             format!(
                 "Type '{}' is not allowed for element '{}'",
                 type_.unwrap_or("unknown"),
@@ -109,13 +109,13 @@ async fn validate_types_and_profiles_if_present<'a>(
 
 pub fn outcome_issue(
     value_location: &Path,
-    severity: IssueSeverity,
-    code: IssueType,
+    severity: BoundCode<IssueSeverity>,
+    code: BoundCode<IssueType>,
     diagnostic: String,
 ) -> OperationOutcomeIssue {
     OperationOutcomeIssue {
-        severity: Box::new(severity),
-        code: Box::new(code),
+        severity: severity,
+        code: code,
         diagnostics: Some(Box::new(FHIRString {
             value: Some(diagnostic),
             ..Default::default()
@@ -137,21 +137,21 @@ pub async fn validate_singular_element<'a>(
         .get_typed::<Box<ElementDefinition>>(ctx.profile())
         .ok_or_else(|| {
             OperationOutcomeError::error(
-                IssueType::Exception(None),
+                IssueType::EXCEPTION,
                 format!("Invalid elements path: {}", element_path),
             )
         })?;
 
     let Some(value) = value_path.get(ctx.root) else {
         return Err(OperationOutcomeError::error(
-            IssueType::Exception(None),
+            IssueType::EXCEPTION,
             format!("Invalid value path: {}", value_path),
         ));
     };
     let mut issues = vec![];
     let Some((elements_pointer, Key::Index(index))) = element_path.ascend() else {
         return Err(OperationOutcomeError::error(
-            IssueType::Exception(None),
+            IssueType::EXCEPTION,
             format!("Invalid element path: {}", element_path),
         ));
     };
@@ -160,13 +160,13 @@ pub async fn validate_singular_element<'a>(
         .get_typed::<Vec<Box<ElementDefinition>>>(ctx.profile())
         .ok_or_else(|| {
             OperationOutcomeError::error(
-                IssueType::Exception(None),
+                IssueType::EXCEPTION,
                 format!("Invalid elements path: {}", elements_pointer),
             )
         })?;
 
     let children = traversal::ele_index_to_child_indices(elements, index)
-        .map_err(|error| OperationOutcomeError::error(IssueType::Exception(None), error))?;
+        .map_err(|error| OperationOutcomeError::error(IssueType::EXCEPTION, error))?;
 
     // Includes all of slice descriptors which is how to split (the descriptor)
     // and the slices that belong to that descriptor (the slices).
@@ -209,8 +209,8 @@ pub async fn validate_singular_element<'a>(
     {
         issues.push(outcome_issue(
             value_path,
-            IssueSeverity::Error(None),
-            IssueType::Value(None),
+            IssueSeverity::ERROR,
+            IssueType::VALUE,
             format!("Value does not match pattern: {:?}", pattern),
         ));
     }
@@ -220,8 +220,8 @@ pub async fn validate_singular_element<'a>(
     {
         issues.push(outcome_issue(
             value_path,
-            IssueSeverity::Error(None),
-            IssueType::Value(None),
+            IssueSeverity::ERROR,
+            IssueType::VALUE,
             format!("Value does not match fixed value: {:?}", fixed_value),
         ));
     }
@@ -262,7 +262,7 @@ pub async fn validate_element<'a>(
     let mut issues = vec![];
     let Some(element) = element_pointer.get_typed::<Box<ElementDefinition>>(ctx.profile()) else {
         return Err(OperationOutcomeError::error(
-            IssueType::Exception(None),
+            IssueType::EXCEPTION,
             format!("Invalid element path: {}", element_pointer),
         ));
     };

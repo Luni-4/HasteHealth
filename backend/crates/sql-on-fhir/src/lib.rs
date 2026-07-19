@@ -7,7 +7,7 @@ use haste_fhir_model::r4::{
     self,
     generated::{
         resources::{Binary, Resource, ResourceType, ViewDefinition},
-        terminology::{IssueType, OutputFormatCodes},
+        terminology::{BoundCode, IssueType, OutputFormatCodes},
         types::{FHIRBase64Binary, FHIRBoolean},
     },
 };
@@ -41,7 +41,7 @@ async fn resolve_view_definition<
             .as_ref()
             .ok_or_else(|| {
                 OperationOutcomeError::error(
-                    IssueType::Invalid(None),
+                    IssueType::INVALID,
                     "viewReference.reference is required".to_string(),
                 )
             })?
@@ -49,7 +49,7 @@ async fn resolve_view_definition<
             .as_ref()
             .ok_or_else(|| {
                 OperationOutcomeError::error(
-                    IssueType::Invalid(None),
+                    IssueType::INVALID,
                     "viewReference.reference.value is required".to_string(),
                 )
             })?;
@@ -60,7 +60,7 @@ async fn resolve_view_definition<
             .last()
             .ok_or_else(|| {
                 OperationOutcomeError::error(
-                    IssueType::Invalid(None),
+                    IssueType::INVALID,
                     "Invalid viewReference.reference format".to_string(),
                 )
             })?
@@ -75,7 +75,7 @@ async fn resolve_view_definition<
             .await?
             .ok_or_else(|| {
                 OperationOutcomeError::error(
-                    IssueType::NotFound(None),
+                    IssueType::NOTFOUND,
                     format!(
                         "ViewDefinition not found with id '{:?}'",
                         view_definition_id
@@ -87,13 +87,13 @@ async fn resolve_view_definition<
             Ok(Cow::Owned(view_definition))
         } else {
             Err(OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 "Referenced resource is not a ViewDefinition".to_string(),
             ))
         }
     } else {
         Err(OperationOutcomeError::error(
-            IssueType::Invalid(None),
+            IssueType::INVALID,
             "Either viewResource or viewReference must be provided".to_string(),
         ))
     }
@@ -117,16 +117,16 @@ async fn get_resources_to_process<
             .and_then(|since| since.value.clone())
             .unwrap_or(r4::datetime::Instant::Iso8601(Utc::now()));
 
-        let Some(resource_type): Option<String> = view_definition.resource.as_ref().into() else {
+        let Some(resource_type) = view_definition.resource.as_str() else {
             return Err(OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 "ViewDefinition.resource is required".to_string(),
             ));
         };
 
         let resource_type = ResourceType::try_from(resource_type).map_err(|e| {
             OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 format!("Invalid resource type: {}", e),
             )
         })?;
@@ -231,7 +231,7 @@ async fn process_resource<
                     .await
                     .map_err(|e| {
                         OperationOutcomeError::error(
-                            IssueType::Exception(None),
+                            IssueType::EXCEPTION,
                             format!("Error evaluating forEach expression: {}", e),
                         )
                     })?,
@@ -247,7 +247,7 @@ async fn process_resource<
                     .await
                     .map_err(|e| {
                         OperationOutcomeError::error(
-                            IssueType::Exception(None),
+                            IssueType::EXCEPTION,
                             format!("Error evaluating forEachOrNull expression: {}", e),
                         )
                     })?,
@@ -267,7 +267,7 @@ async fn process_resource<
                         .await
                         .map_err(|e| {
                             OperationOutcomeError::error(
-                                IssueType::Exception(None),
+                                IssueType::EXCEPTION,
                                 format!("Error evaluating repeat expression: {}", e),
                             )
                         })?,
@@ -294,7 +294,7 @@ async fn process_resource<
             for column in select_statement.column.as_ref().into_iter().flatten() {
                 let Some(name) = column.name.value.as_ref().map(|n| n.as_str()) else {
                     return Err(OperationOutcomeError::error(
-                        IssueType::Invalid(None),
+                        IssueType::INVALID,
                         "Column name is required".to_string(),
                     ));
                 };
@@ -308,14 +308,14 @@ async fn process_resource<
             for column in select_statement.column.as_ref().into_iter().flatten() {
                 let Some(path) = column.path.value.as_ref().map(|p| p.as_str()) else {
                     return Err(OperationOutcomeError::error(
-                        IssueType::Invalid(None),
+                        IssueType::INVALID,
                         "Column path is required".to_string(),
                     ));
                 };
 
                 let Some(name) = column.name.value.as_ref().map(|n| n.as_str()) else {
                     return Err(OperationOutcomeError::error(
-                        IssueType::Invalid(None),
+                        IssueType::INVALID,
                         "Column name is required".to_string(),
                     ));
                 };
@@ -325,7 +325,7 @@ async fn process_resource<
                     .await
                     .map_err(|e| {
                         OperationOutcomeError::error(
-                            IssueType::Exception(None),
+                            IssueType::EXCEPTION,
                             format!("Error evaluating expression: {}", e),
                         )
                     })?;
@@ -363,7 +363,7 @@ async fn process_resource<
                 } else {
                     if column_result.len() > 1 {
                         return Err(OperationOutcomeError::error(
-                            IssueType::Invalid(None),
+                            IssueType::INVALID,
                             "Column result is a collection but the column is not marked as a collection"
                                 .to_string(),
                         ));
@@ -429,7 +429,7 @@ async fn passes_where_clauses(
             .await
             .map_err(|e| {
                 OperationOutcomeError::error(
-                    IssueType::Exception(None),
+                    IssueType::EXCEPTION,
                     format!("Error evaluating where clause expression: {}", e),
                 )
             })?;
@@ -446,7 +446,7 @@ async fn passes_where_clauses(
                     Ok(v.as_any().downcast_ref::<bool>().unwrap_or(&false))
                 }
                 _ => Err(OperationOutcomeError::error(
-                    IssueType::Invalid(None),
+                    IssueType::INVALID,
                     format!(
                         "Where clause expression must evaluate to a boolean, got: {}",
                         v.fhir_type()
@@ -468,7 +468,7 @@ async fn process_view_definition<
     Client: FHIRClient<CTX, OperationOutcomeError> + Send + Sync + 'static,
 >(
     context: CTX,
-    output_format: &OutputFormatCodes,
+    output_format: &BoundCode<OutputFormatCodes>,
     client: Arc<Client>,
     view_definition: &ViewDefinition,
     input: &ViewDefinitionRun::Input,
@@ -529,7 +529,7 @@ async fn process_view_definition<
     let results = results.into_iter().flatten().collect::<Vec<_>>();
 
     match output_format {
-        OutputFormatCodes::Csv(_) => {
+        binding if binding == &OutputFormatCodes::CSV => {
             let data = output::csv::csv(results)?;
 
             let base64_string: String = general_purpose::STANDARD.encode(&data);
@@ -542,7 +542,7 @@ async fn process_view_definition<
                 ..Default::default()
             })
         }
-        OutputFormatCodes::Json(_) => {
+        binding if binding == &OutputFormatCodes::JSON => {
             let data = output::json::json(results)?;
 
             let base64_string: String = general_purpose::STANDARD.encode(&data);
@@ -555,7 +555,7 @@ async fn process_view_definition<
                 ..Default::default()
             })
         }
-        OutputFormatCodes::Ndjson(_) => {
+        binding if binding == &OutputFormatCodes::NDJSON => {
             let data = output::ndjson::ndjson(results)?;
             let base64_string: String = general_purpose::STANDARD.encode(&data);
 
@@ -568,7 +568,7 @@ async fn process_view_definition<
             })
         }
         _ => Err(OperationOutcomeError::error(
-            IssueType::NotSupported(None),
+            IssueType::NOTSUPPORTED,
             format!("Output format '{:?}' is not supported", output_format),
         )),
     }
@@ -586,8 +586,8 @@ pub async fn view_definition_run<
         ._format
         .as_ref()
         .and_then(|v| v.value.as_ref())
-        .and_then(|s| OutputFormatCodes::try_from(s.to_string()).ok())
-        .unwrap_or(OutputFormatCodes::Csv(None));
+        .and_then(|s| BoundCode::<OutputFormatCodes>::new(s))
+        .unwrap_or(OutputFormatCodes::CSV);
 
     let view_definition =
         Arc::new(resolve_view_definition(context.clone(), client.as_ref(), &input).await?);

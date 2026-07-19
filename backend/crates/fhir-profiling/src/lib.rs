@@ -45,7 +45,7 @@ impl<'a, Resolver: CanonicalResolver> FHIRProfileCTX<'a, Resolver> {
                 root,
             }),
             _ => Err(OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 "Profile resource must be a StructureDefinition".to_string(),
             )),
         }
@@ -65,8 +65,8 @@ pub async fn validate_profile<'a>(
     ctx: Arc<FHIRProfileCTX<'a, impl CanonicalResolver>>,
 ) -> Result<OperationOutcome, OperationOutcomeError> {
     let mut outcome = OperationOutcome::default();
-    match ctx.profile().derivation.as_ref().map(|d| d.as_ref()) {
-        Some(TypeDerivationRule::Constraint(_)) => {
+    match ctx.profile().derivation.as_ref() {
+        derivation if derivation == Some(&TypeDerivationRule::CONSTRAINT) => {
             let element_location = Path::new()
                 .descend("snapshot")
                 .descend("element")
@@ -79,7 +79,7 @@ pub async fn validate_profile<'a>(
         }
         _ => {
             return Err(OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 "Only profiles with derivation 'constraint' are supported".to_string(),
             ));
         }

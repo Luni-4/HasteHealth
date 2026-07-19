@@ -77,18 +77,22 @@ async fn resolve_codesystem<Resolver: CanonicalResolver>(
 async fn get_concepts(
     codesystem: &CodeSystem,
 ) -> Result<Vec<CodeSystemConcept>, OperationOutcomeError> {
-    match codesystem.content.as_ref() {
-        CodesystemContentMode::NotPresent(_) => Err(OperationOutcomeError::error(
-            IssueType::NotSupported(None),
-            "CodeSystem content is 'not-present'".to_string(),
-        )),
-        CodesystemContentMode::Fragment(_)
-        | CodesystemContentMode::Complete(_)
-        | CodesystemContentMode::Supplement(_) => {
+    match &codesystem.content {
+        content_type if content_type == &CodesystemContentMode::NOTPRESENT => {
+            Err(OperationOutcomeError::error(
+                IssueType::NOTSUPPORTED,
+                "CodeSystem content is 'not-present'".to_string(),
+            ))
+        }
+        content_type
+            if content_type == &CodesystemContentMode::FRAGMENT
+                || content_type == &CodesystemContentMode::COMPLETE
+                || content_type == &CodesystemContentMode::SUPPLEMENT =>
+        {
             Ok(codesystem.concept.clone().unwrap_or_default())
         }
         _ => Err(OperationOutcomeError::error(
-            IssueType::Invalid(None),
+            IssueType::INVALID,
             "CodeSystem content has invalid value".to_string(),
         )),
     }
@@ -257,7 +261,7 @@ fn expand_valueset<Resolver: CanonicalResolver + Sync + Send + Clone + 'static>(
             })
         } else {
             return Err(OperationOutcomeError::error(
-                IssueType::NotFound(None),
+                IssueType::NOTFOUND,
                 "ValueSet could not be resolved".to_string(),
             ));
         }
@@ -279,7 +283,7 @@ impl FHIRTerminology for FHIRCanonicalTerminology {
     ) -> Result<ValueSetValidateCode::Output, OperationOutcomeError> {
         let Some(code) = input.code else {
             return Err(OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 "No code provided for validation only support 'code' field validation".to_string(),
             ));
         };

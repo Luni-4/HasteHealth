@@ -9,6 +9,7 @@ mod tests {
             resources::{
                 ClientApplication, ObservationEffectiveTypeChoice, Practitioner, Resource,
             },
+            terminology::BoundCode,
             types::{FHIRDateTime, Period},
         },
     };
@@ -18,12 +19,21 @@ mod tests {
 
     #[test]
     fn test_enum_with_extension() {
-        let term_ = r4::generated::terminology::AdministrativeGender::Male(Some(
-            r4::generated::types::Element {
-                id: Some("test".to_string()),
-                ..r4::generated::types::Element::default()
-            },
-        ));
+        let mut term_ = r4::generated::terminology::BoundCode::<
+            r4::generated::terminology::AdministrativeGender,
+        >::new(
+            r4::generated::terminology::AdministrativeGender::MALE
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+
+        let e = term_.element_mut();
+        *e = r4::generated::types::Element {
+            id: Some("test".to_string()),
+            ..r4::generated::types::Element::default()
+        };
+
         assert_eq!(term_.fhir_type(), "code");
         let k = term_
             .get_field("value")
@@ -33,21 +43,6 @@ mod tests {
             .unwrap();
         assert_eq!(k, &"male");
     }
-
-    // #[test]
-    // fn test_serializing_string_html() {
-    //     let k = r#""<div xmlns=\"http://www.w3.org/1999/xhtml\">\n      <p>Dr Adam Careful is a Referring Practitioner for Acme Hospital from 1-Jan 2012 to 31-Mar\n        2012</p>\n    </div>""#;
-    //     let parsed_str_serde =
-    //         serde_json::to_string(&serde_json::from_str::<serde_json::Value>(k).unwrap()).unwrap();
-
-    //     assert_eq!(
-    //         parsed_str_serde,
-    //         haste_fhir_serialization_json::to_string(
-    //             &haste_fhir_serialization_json::from_str::<String>(k).unwrap()
-    //         )
-    //         .unwrap()
-    //     );
-    // }
 
     #[test]
     fn enum_resource_type_variant() {
@@ -166,8 +161,8 @@ mod tests {
         "#;
         let address: Address = serde_json::from_str::<Address>(address_string).unwrap();
 
-        let address_use: Option<String> = address.use_.unwrap().as_ref().into();
-        assert_eq!(address_use.unwrap(), "home".to_string());
+        let address_use = address.use_.unwrap().as_str();
+        assert_eq!(address_use.unwrap(), "home");
         assert_eq!(
             address.line.as_ref().unwrap()[0].value.as_ref().unwrap(),
             &"123 Main St".to_string()
@@ -180,7 +175,7 @@ mod tests {
             address.city.as_ref().unwrap().value.as_ref().unwrap(),
             &"Anytown".to_string()
         );
-        assert_eq!(address.state.unwrap().value.unwrap(), "CA".to_string());
+        assert_eq!(address.state.unwrap().value.as_ref().unwrap(), "CA");
         assert_eq!(
             address.postalCode.unwrap().value.unwrap(),
             "12345".to_string()
@@ -474,9 +469,9 @@ mod tests {
     fn test_serde_terminology() {
         use crate::r4::generated::terminology::AdministrativeGender;
 
-        let admin_gender = serde_json::from_str::<AdministrativeGender>("\"male\"");
+        let admin_gender = serde_json::from_str::<BoundCode<AdministrativeGender>>("\"male\"");
 
-        assert!(matches!(admin_gender, Ok(AdministrativeGender::Male(None))));
+        assert!(admin_gender.unwrap() == AdministrativeGender::MALE);
     }
 
     #[test]

@@ -146,17 +146,18 @@ pub(crate) async fn testscript_commands(
             while let Some(Ok(res)) = test_runs.join_next().await {
                 match res {
                     Ok(test_report) => {
-                        match test_report.result.as_ref() {
-                            ReportResultCodes::Fail(_) => status_code = 1,
+                        match &test_report.result {
                             // Ignore for rest.
-                            ReportResultCodes::Pass(_)
-                            | ReportResultCodes::Pending(_)
-                            | ReportResultCodes::Null(_) => {}
+                            r if r == &ReportResultCodes::PASS
+                                || r == &ReportResultCodes::PENDING
+                                || r == &ReportResultCodes::NULL => {}
+                            r if r == &ReportResultCodes::FAIL => status_code = 1,
+                            _ => status_code = 1,
                         }
 
                         testreport_entries.push(BundleEntry {
                             request: Some(BundleEntryRequest {
-                                method: Box::new(HttpVerb::PUT(None)),
+                                method: HttpVerb::PUT,
                                 url: Box::new(FHIRUri {
                                     value: Some(format!(
                                         "TestReport/{}",
@@ -177,7 +178,7 @@ pub(crate) async fn testscript_commands(
             }
 
             let testreport_bundle = Bundle {
-                type_: Box::new(BundleType::Transaction(None)),
+                type_: BundleType::TRANSACTION,
                 entry: Some(testreport_entries),
                 ..Default::default()
             };
@@ -187,7 +188,7 @@ pub(crate) async fn testscript_commands(
                     output,
                     serde_json::to_string(&testreport_bundle).map_err(|e| {
                         OperationOutcomeError::fatal(
-                            IssueType::Exception(None),
+                            IssueType::EXCEPTION,
                             format!("Failed to serialize TestReport bundle: {}", e),
                         )
                     })?,
@@ -198,7 +199,7 @@ pub(crate) async fn testscript_commands(
                     "{}",
                     serde_json::to_string(&testreport_bundle).map_err(|e| {
                         OperationOutcomeError::fatal(
-                            IssueType::Exception(None),
+                            IssueType::EXCEPTION,
                             format!("Failed to serialize TestReport bundle: {}", e),
                         )
                     })?
@@ -207,7 +208,7 @@ pub(crate) async fn testscript_commands(
 
             if status_code != 0 {
                 Err(OperationOutcomeError::fatal(
-                    IssueType::Exception(None),
+                    IssueType::EXCEPTION,
                     "One or more TestScripts failed".to_string(),
                 ))
             } else {

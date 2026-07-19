@@ -186,8 +186,8 @@ pub mod conversion {
                     // inlined could be a url | version for canonical.
                     // Only do inlined if the binding is required and exists as inlined terminology.
 
-                    if let Some(BindingStrength::Required(_)) =
-                        element.binding.as_ref().map(|b| b.strength.as_ref())
+                    if Some(&BindingStrength::REQUIRED)
+                        == element.binding.as_ref().map(|b| &b.strength)
                         && let Some(canonical_string) = element
                             .binding
                             .as_ref()
@@ -199,7 +199,7 @@ pub mod conversion {
                     {
                         let inline_type = format_ident!("{}", inlined);
                         quote! {
-                            Box<terminology::#inline_type>
+                            terminology::BoundCode<terminology::#inline_type>
                         }
                     } else {
                         let k = format_ident!("{}", primitive.clone());
@@ -429,11 +429,7 @@ pub mod conditionals {
     }
 
     pub fn is_resource_sd(sd: &StructureDefinition) -> bool {
-        if let StructureDefinitionKind::Resource(_) = sd.kind.as_ref() {
-            true
-        } else {
-            false
-        }
+        sd.kind == StructureDefinitionKind::RESOURCE
     }
 
     pub fn is_primitive_type(fhir_type: &str) -> bool {
@@ -457,11 +453,7 @@ pub mod conditionals {
     }
 
     pub fn is_primitive_sd(sd: &StructureDefinition) -> bool {
-        if let StructureDefinitionKind::PrimitiveType(_) = sd.kind.as_ref() {
-            true
-        } else {
-            false
-        }
+        sd.kind == StructureDefinitionKind::PRIMITIVETYPE
     }
 
     pub fn is_typechoice(element: &ElementDefinition) -> bool {
@@ -506,11 +498,16 @@ pub mod load {
 
                     let filtered_sds = sds.filter(move |sd| {
                         if let Some(level) = level {
-                            match sd.kind.as_ref() {
-                                StructureDefinitionKind::Resource(_)
-                                | StructureDefinitionKind::Null(_) => level == "resource",
-                                StructureDefinitionKind::ComplexType(_) => level == "complex-type",
-                                StructureDefinitionKind::PrimitiveType(_) => {
+                            match &sd.kind {
+                                kind if kind == &StructureDefinitionKind::RESOURCE
+                                    || kind == &StructureDefinitionKind::NULL =>
+                                {
+                                    level == "resource"
+                                }
+                                kind if kind == &StructureDefinitionKind::COMPLEXTYPE => {
+                                    level == "complex-type"
+                                }
+                                kind if kind == &StructureDefinitionKind::PRIMITIVETYPE => {
                                     level == "primitive-type"
                                 }
                                 _ => false,
@@ -529,11 +526,18 @@ pub mod load {
                 let resources = std::iter::once(sd);
                 let filtered_resources = resources.filter(|sd| {
                     if let Some(level) = level {
-                        match sd.kind.as_ref() {
-                            StructureDefinitionKind::Resource(_)
-                            | StructureDefinitionKind::Null(_) => level == "resource",
-                            StructureDefinitionKind::ComplexType(_) => level == "complex-type",
-                            StructureDefinitionKind::PrimitiveType(_) => level == "primitive-type",
+                        match &sd.kind {
+                            kind if kind == &StructureDefinitionKind::RESOURCE
+                                || kind == &StructureDefinitionKind::NULL =>
+                            {
+                                level == "resource"
+                            }
+                            kind if kind == &StructureDefinitionKind::COMPLEXTYPE => {
+                                level == "complex-type"
+                            }
+                            kind if kind == &StructureDefinitionKind::PRIMITIVETYPE => {
+                                level == "primitive-type"
+                            }
                             _ => false,
                         }
                     } else {

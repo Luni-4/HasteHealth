@@ -87,7 +87,7 @@ impl<
                                     CreateUser {
                                         id: id.clone(),
                                         email: user.email.clone().and_then(|e| e.value),
-                                        role: (*user.role).clone().into(),
+                                        role: user.role.clone().into(),
                                         method: get_user_method(user),
                                         provider_id: get_provider_id(user),
                                         password: None,
@@ -98,7 +98,7 @@ impl<
                                 Ok(res)
                             } else {
                                 Err(OperationOutcomeError::fatal(
-                                    IssueType::Invalid(None),
+                                    IssueType::INVALID,
                                     "User resource is invalid.".to_string(),
                                 ))
                             }
@@ -117,7 +117,7 @@ impl<
                                 Ok(res)
                             } else {
                                 Err(OperationOutcomeError::fatal(
-                                    IssueType::Invalid(None),
+                                    IssueType::INVALID,
                                     "User resource is invalid.".to_string(),
                                 ))
                             }
@@ -132,7 +132,7 @@ impl<
                                     UpdateUser {
                                         id: id.clone(),
                                         email: user.email.clone().and_then(|e| e.value),
-                                        role: Some((*user.role).clone().into()),
+                                        role: Some(user.role.clone().into()),
                                         method: Some(get_user_method(user)),
                                         provider_id: get_provider_id(user),
                                         password: None,
@@ -143,7 +143,7 @@ impl<
                                 Ok(res)
                             } else {
                                 Err(OperationOutcomeError::fatal(
-                                    IssueType::Invalid(None),
+                                    IssueType::INVALID,
                                     "User resource is invalid.".to_string(),
                                 ))
                             }
@@ -154,7 +154,7 @@ impl<
                 }
             } else {
                 Err(OperationOutcomeError::fatal(
-                    IssueType::Exception(None),
+                    IssueType::EXCEPTION,
                     "No next middleware found".to_string(),
                 ))
             }

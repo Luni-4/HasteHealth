@@ -72,13 +72,15 @@ impl<
                     match &context.request {
                         FHIRRequest::Create(create_request) => {
                             if let Resource::Project(project) = &create_request.resource {
-                                let fhir_version = match &*project.fhirVersion {
-                                    SupportedFhirVersion::R4(_) => Ok(SupportedFHIRVersions::R4),
+                                let fhir_version = match &project.fhirVersion {
+                                    f if f == &SupportedFhirVersion::R4 => {
+                                        Ok(SupportedFHIRVersions::R4)
+                                    }
                                     _ => Err(OperationOutcomeError::fatal(
-                                        IssueType::Invalid(None),
+                                        IssueType::INVALID,
                                         format!(
                                             "Invalid FHIR Version '{:?}'",
-                                            &*project.fhirVersion
+                                            &project.fhirVersion
                                         ),
                                     )),
                                 }?;
@@ -113,7 +115,7 @@ impl<
                                                     name: name,
                                                     fhirVersion: match project_model.fhir_version {
                                                         SupportedFHIRVersions::R4 => {
-                                                            Box::new(SupportedFhirVersion::R4(None))
+                                                            SupportedFhirVersion::R4
                                                         }
                                                     },
                                                     ..Default::default()
@@ -127,7 +129,7 @@ impl<
                                 Ok(res)
                             } else {
                                 Err(OperationOutcomeError::fatal(
-                                    IssueType::Invalid(None),
+                                    IssueType::INVALID,
                                     "Project resource is invalid.".to_string(),
                                 ))
                             }
@@ -135,13 +137,15 @@ impl<
 
                         FHIRRequest::Update(UpdateRequest::Instance(update_request)) => {
                             if let Resource::Project(project) = &update_request.resource {
-                                let fhir_version = match &*project.fhirVersion {
-                                    SupportedFhirVersion::R4(_) => Ok(SupportedFHIRVersions::R4),
+                                let fhir_version = match &project.fhirVersion {
+                                    f if f == &SupportedFhirVersion::R4 => {
+                                        Ok(SupportedFHIRVersions::R4)
+                                    }
                                     _ => Err(OperationOutcomeError::fatal(
-                                        IssueType::Invalid(None),
+                                        IssueType::INVALID,
                                         format!(
                                             "Invalid FHIR Version '{:?}'",
-                                            &*project.fhirVersion
+                                            &project.fhirVersion
                                         ),
                                     )),
                                 }?;
@@ -157,14 +161,14 @@ impl<
                                     .await?
                                 else {
                                     return Err(OperationOutcomeError::fatal(
-                                        IssueType::NotFound(None),
+                                        IssueType::NOTFOUND,
                                         "Project not found.".to_string(),
                                     ));
                                 };
 
                                 if &cur_model.fhir_version != &fhir_version {
                                     return Err(OperationOutcomeError::fatal(
-                                        IssueType::NotSupported(None),
+                                        IssueType::NOTSUPPORTED,
                                         "Changing FHIR version of existing project is not supported."
                                             .to_string(),
                                     ));
@@ -172,7 +176,7 @@ impl<
 
                                 if cur_model.system_created {
                                     return Err(OperationOutcomeError::fatal(
-                                        IssueType::NotSupported(None),
+                                        IssueType::NOTSUPPORTED,
                                         "Cannot update system created projects.".to_string(),
                                     ));
                                 }
@@ -202,7 +206,7 @@ impl<
                                 Ok(res)
                             } else {
                                 Err(OperationOutcomeError::fatal(
-                                    IssueType::Invalid(None),
+                                    IssueType::INVALID,
                                     "Project resource is invalid.".to_string(),
                                 ))
                             }
@@ -243,14 +247,14 @@ impl<
                         // Dissallow updates on project because could impact integrity of system. For example project has stored
                         // resources in a specific FHIR version, changing that version would cause issues.
                         _ => Err(OperationOutcomeError::fatal(
-                            IssueType::NotSupported(None),
+                            IssueType::NOTSUPPORTED,
                             "Operation is not supported for Project resource types.".to_string(),
                         )),
                     }
                 }
             } else {
                 Err(OperationOutcomeError::fatal(
-                    IssueType::Exception(None),
+                    IssueType::EXCEPTION,
                     "No next middleware found".to_string(),
                 ))
             }

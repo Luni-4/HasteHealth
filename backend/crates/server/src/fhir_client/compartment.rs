@@ -10,7 +10,7 @@ use haste_fhir_client::{
 };
 use haste_fhir_model::r4::generated::{
     resources::{Bundle, CompartmentDefinition, Resource, ResourceType},
-    terminology::{CompartmentType, IssueType},
+    terminology::{BoundCode, CompartmentType, IssueType},
 };
 use haste_fhir_operation_error::OperationOutcomeError;
 use std::sync::{Arc, LazyLock};
@@ -26,14 +26,16 @@ static COMPARTMENTS: LazyLock<Vec<&'static CompartmentDefinition>> = LazyLock::n
         .collect::<Vec<_>>()
 });
 
-fn compartment_type_to_resource_type(compartment_type: &CompartmentType) -> Option<ResourceType> {
+fn compartment_type_to_resource_type(
+    compartment_type: &BoundCode<CompartmentType>,
+) -> Option<ResourceType> {
     match compartment_type {
-        CompartmentType::Device(_) => Some(ResourceType::Device),
-        CompartmentType::Encounter(_) => Some(ResourceType::Encounter),
-        CompartmentType::Patient(_) => Some(ResourceType::Patient),
-        CompartmentType::Practitioner(_) => Some(ResourceType::Practitioner),
-        CompartmentType::RelatedPerson(_) => Some(ResourceType::RelatedPerson),
-        CompartmentType::Null(_) => None,
+        c if c == &CompartmentType::DEVICE => Some(ResourceType::Device),
+        c if c == &CompartmentType::ENCOUNTER => Some(ResourceType::Encounter),
+        c if c == &CompartmentType::PATIENT => Some(ResourceType::Patient),
+        c if c == &CompartmentType::PRACTITIONER => Some(ResourceType::Practitioner),
+        c if c == &CompartmentType::RELATEDPERSON => Some(ResourceType::RelatedPerson),
+        _ => None,
     }
 }
 
@@ -53,7 +55,7 @@ pub async fn process_compartment_request<
         compartment_type.as_ref() == Some(&compartment_request.resource_type)
     }) else {
         return Err(OperationOutcomeError::error(
-            IssueType::NotFound(None),
+            IssueType::NOTFOUND,
             format!(
                 "Compartment definition for resource type {:?} not found.",
                 compartment_request.resource_type
@@ -65,13 +67,12 @@ pub async fn process_compartment_request<
         FHIRRequest::Search(SearchRequest::Type(type_search_request)) => {
             let Some(compartment_resource) = compartment.resource.as_ref().and_then(|resources| {
                 resources.iter().find(|resource_param| {
-                    let code: Option<String> = resource_param.code.as_ref().into();
-                    code.as_ref().map(|s| s.as_str())
-                        == Some(type_search_request.resource_type.as_ref())
+                    let code = resource_param.code.as_str();
+                    code == Some(type_search_request.resource_type.as_ref())
                 })
             }) else {
                 return Err(OperationOutcomeError::error(
-                    IssueType::NotFound(None),
+                    IssueType::NOTFOUND,
                     format!(
                         "Compartment definition for resource type '{}' does not include resource type '{}'.",
                         compartment_request.resource_type.as_ref(),
@@ -133,7 +134,7 @@ pub async fn process_compartment_request<
         // FHIRRequest::Read(read_request) => Ok(()),
         _ => {
             return Err(OperationOutcomeError::error(
-                IssueType::NotSupported(None),
+                IssueType::NOTSUPPORTED,
                 "Only type search requests and reads are supported in compartment processing."
                     .to_string(),
             ));

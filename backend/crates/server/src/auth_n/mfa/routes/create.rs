@@ -53,10 +53,7 @@ pub async fn create_post<
     let get_auth_state = session::user::get_completed_authorization_state(&current_session)
         .await
         .map_err(|_e| {
-            OperationOutcomeError::error(
-                IssueType::Security(None),
-                "User is not logged in.".to_string(),
-            )
+            OperationOutcomeError::error(IssueType::SECURITY, "User is not logged in.".to_string())
         })?;
 
     let existing_mfa_credentials = TenantModelAdmin::<UserMFACredentialCreate, _, _, _, _>::search(
@@ -73,7 +70,7 @@ pub async fn create_post<
     // Todo make this amount configurable
     if existing_mfa_credentials.len() >= state.config.security.mfa.max_credentials_per_user {
         return Err(OperationOutcomeError::error(
-            IssueType::Security(None),
+            IssueType::SECURITY,
             format!(
                 "User has reached the maximum of {} MFA credentials allowed.",
                 state.config.security.mfa.max_credentials_per_user
@@ -85,7 +82,7 @@ pub async fn create_post<
         tracing::error!(error = ?e);
 
         OperationOutcomeError::error(
-            IssueType::Exception(None),
+            IssueType::EXCEPTION,
             "Could not generate secret for MFA".to_string(),
         )
     })?;

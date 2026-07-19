@@ -102,7 +102,7 @@ async fn find_element_definition_for_discriminator<'a, Resolver: CanonicalResolv
         .and_then(|snapshot| snapshot.element.get(current_index))
         .ok_or_else(|| {
             OperationOutcomeError::error(
-                IssueType::Exception(None),
+                IssueType::EXCEPTION,
                 format!("Invalid element index: {}", current_index),
             )
         })?;
@@ -149,7 +149,7 @@ async fn find_element_definition_for_discriminator<'a, Resolver: CanonicalResolv
                         .await?
                         .ok_or_else(|| {
                             OperationOutcomeError::error(
-                                IssueType::Exception(None),
+                                IssueType::EXCEPTION,
                                 format!("Failed to resolve profile canonical: {}", canonical),
                             )
                         })?;
@@ -183,7 +183,7 @@ async fn find_element_definition_for_discriminator<'a, Resolver: CanonicalResolv
                 .unwrap_or(&default),
             current_index,
         )
-        .map_err(|err| OperationOutcomeError::error(IssueType::Exception(None), err))?;
+        .map_err(|err| OperationOutcomeError::error(IssueType::EXCEPTION, err))?;
 
         for child_index in child_indices {
             let found_discriminator = Box::pin(find_element_definition_for_discriminator(
@@ -245,7 +245,7 @@ async fn is_conformant_to_slice_descriptor(
 ) -> Result<bool, OperationOutcomeError> {
     let value = path.get(root).ok_or_else(|| {
         OperationOutcomeError::error(
-            IssueType::Invalid(None),
+            IssueType::INVALID,
             "Value for discriminator not found at path".to_string(),
         )
     })?;
@@ -262,7 +262,7 @@ async fn is_conformant_to_slice_descriptor(
         .await
         .map_err(|err| {
             OperationOutcomeError::error(
-                IssueType::Exception(None),
+                IssueType::EXCEPTION,
                 format!(
                     "Failed to evaluate FHIRPath expression for discriminator: {}",
                     err
@@ -272,11 +272,13 @@ async fn is_conformant_to_slice_descriptor(
 
     let values = values.iter().collect::<Vec<_>>();
 
-    match discriminator.type_.as_ref() {
-        DiscriminatorType::Exists(_) => Ok(values.len() > 0),
-        DiscriminatorType::Pattern(_) => {
+    match &discriminator.type_ {
+        discriminator_type if discriminator_type == &DiscriminatorType::EXISTS => {
+            Ok(values.len() > 0)
+        }
+        discriminator_type if discriminator_type == &DiscriminatorType::PATTERN => {
             let pattern = slice_value_element_definition.pattern.as_ref().ok_or_else(|| OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 "Slice value element definition must have a pattern for pattern discriminator".to_string(),
             ))?;
 
@@ -288,18 +290,20 @@ async fn is_conformant_to_slice_descriptor(
 
             return Ok(false);
         }
-        DiscriminatorType::Profile(_) => Err(OperationOutcomeError::error(
-            IssueType::NotSupported(None),
-            "Profile discriminator type is not supported".to_string(),
-        )),
-        DiscriminatorType::Type(_) => {
+        discriminator_type if discriminator_type == &DiscriminatorType::PROFILE => {
+            Err(OperationOutcomeError::error(
+                IssueType::NOTSUPPORTED,
+                "Profile discriminator type is not supported".to_string(),
+            ))
+        }
+        discriminator_type if discriminator_type == &DiscriminatorType::TYPE => {
             let expected_types =
                 slice_value_element_definition
                     .type_
                     .as_ref()
                     .ok_or_else(|| {
                         OperationOutcomeError::error(
-                            IssueType::Invalid(None),
+                            IssueType::INVALID,
                             "Slice value element definition must have types for type discriminator"
                                 .to_string(),
                         )
@@ -318,7 +322,7 @@ async fn is_conformant_to_slice_descriptor(
             Ok(result.is_some())
         }
         // Observation us-core has pattern even though it's value based slicing
-        DiscriminatorType::Value(_) => {
+        discriminator_type if discriminator_type == &DiscriminatorType::VALUE => {
             if let Some(fixed_value) = slice_value_element_definition.fixed.as_ref() {
                 for value in values.iter() {
                     if is_equal(*value, fixed_value)? {
@@ -371,16 +375,22 @@ async fn is_conformant_to_slice_descriptor(
                 }
             } else {
                 return Err(OperationOutcomeError::error(
-                    IssueType::Invalid(None),
+                    IssueType::INVALID,
                     "Slice value element definition must have either a fixed value or a pattern for value discriminator".to_string(),
                 ));
             }
 
             return Ok(false);
         }
-        DiscriminatorType::Null(_) => Err(OperationOutcomeError::error(
-            IssueType::NotSupported(None),
-            "Null discriminator type is not supported".to_string(),
+        discriminator_type if discriminator_type == &DiscriminatorType::NULL => {
+            Err(OperationOutcomeError::error(
+                IssueType::NOTSUPPORTED,
+                "Null discriminator type is not supported".to_string(),
+            ))
+        }
+        _ => Err(OperationOutcomeError::error(
+            IssueType::NOTSUPPORTED,
+            "Unsupported discriminator type".to_string(),
         )),
     }
 }
@@ -409,7 +419,7 @@ async fn is_conformant_to_discriminators<'a>(
         .await?
         else {
             return Err(OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 format!(
                     "'{}' Failed to find element definition for discriminator path '{}'",
                     ctx.profile()
@@ -455,7 +465,7 @@ async fn split_slicing<'a>(
         .and_then(|s| s.discriminator.as_ref())
         .ok_or_else(|| {
             OperationOutcomeError::error(
-                IssueType::Invalid(None),
+                IssueType::INVALID,
                 "Invalid slicing discriminator configuration".to_string(),
             )
         })?;
@@ -514,7 +524,7 @@ fn get_element<'a>(
         .and_then(|snapshot| snapshot.element.get(element_index))
         .ok_or_else(|| {
             OperationOutcomeError::error(
-                IssueType::Exception(None),
+                IssueType::EXCEPTION,
                 format!("Invalid slicing discriminator index: {}", element_index),
             )
         })?;
@@ -534,8 +544,8 @@ fn validate_slice_cardinality(
     if slice_locs.len() < min as usize {
         issues.push(outcome_issue(
             slice_locs.first().unwrap_or(&Path::new()),
-            IssueSeverity::Error(None),
-            IssueType::Value(None),
+            IssueSeverity::ERROR,
+            IssueType::VALUE,
             format!(
                  "Profile: '{}' Element: '{}' Minimum number of required values not met expected at least '{}', found '{}'",
                 profile.id.as_ref().map(|s| s.as_str()).unwrap_or("unknown"),
@@ -551,8 +561,8 @@ fn validate_slice_cardinality(
             if slice_locs.len() > fixed_max as usize {
                 issues.push(outcome_issue(
                     slice_locs.first().unwrap_or(&Path::new()),
-                    IssueSeverity::Error(None),
-                    IssueType::Value(None),
+                    IssueSeverity::ERROR,
+                    IssueType::VALUE,
                     format!(
                         "Cardinality too high: expected at most '{}', found '{}'",
                         fixed_max,
@@ -585,7 +595,7 @@ pub async fn validate_slicing_descriptor<'a>(
     for slice in slicing_descriptor.slices.iter() {
         let slice_locs = split_slices.0.get(slice).ok_or_else(|| {
             OperationOutcomeError::error(
-                IssueType::Exception(None),
+                IssueType::EXCEPTION,
                 format!("Missing slice locations for slice index: {}", slice),
             )
         })?;
