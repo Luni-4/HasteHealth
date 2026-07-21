@@ -61,7 +61,6 @@ mod tests {
                     "state": "CA",
                     "postalCode": "12345"
                 }]
-            
             }"#,
         );
 
@@ -576,10 +575,10 @@ mod tests {
         "responseTypes": "token",
         "secret": "testing",
         "redirectUri": [
-          "http://localhost:8080/1", 
-          "http://localhost:8080/2", 
-          "http://localhost:8080/3", 
-          "http://localhost:8080/4", 
+          "http://localhost:8080/1",
+          "http://localhost:8080/2",
+          "http://localhost:8080/3",
+          "http://localhost:8080/4",
           "http://localhost:8080/5"],
         "scope": "openid system/*.*"
       }"#;
@@ -589,18 +588,18 @@ mod tests {
         assert!(client_app.is_ok());
 
         let client_application_string = r#"{
-	    "id": "cli",
+        "id": "cli",
         "resourceType": "ClientApplication",
         "name": "CLI",
         "grantType": ["authorization_code"],
         "responseTypes": "token",
         "secret": "testing",
         "redirectUri": [
-          "http://localhost:8080/1", 
-          "http://localhost:8080/2", 
-          "http://localhost:8080/3", 
-          "http://localhost:8080/4", 
-          "http://localhost:8080/5", 
+          "http://localhost:8080/1",
+          "http://localhost:8080/2",
+          "http://localhost:8080/3",
+          "http://localhost:8080/4",
+          "http://localhost:8080/5",
           "http://localhost:8080/6"],
         "scope": "openid system/*.*"
       }"#;
