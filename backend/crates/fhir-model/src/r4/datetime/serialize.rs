@@ -38,15 +38,15 @@ impl FHIRJSONDeserializer for DateTime {
         s: &str,
     ) -> Result<Self, haste_fhir_serialization_json::errors::DeserializeError> {
         let mut json_value: Value = serde_json::from_str(s)?;
-        DateTime::from_serde_value(&mut json_value, Context::AsValue)
+        DateTime::from_serde_value(&raw mut json_value, Context::AsValue)
     }
 
     fn from_serde_value(
         value: *mut Value,
         context: haste_fhir_serialization_json::Context,
     ) -> Result<Self, haste_fhir_serialization_json::errors::DeserializeError> {
-        let value = unsafe { &mut *(value as *mut Value) };
-        let k = get_value(&value, &context)
+        let value = unsafe { &mut *(value.cast::<Value>()) };
+        let k = get_value(value, &context)
             .and_then(|v| v.as_str().and_then(|v| parse_datetime(v).ok()));
         k.ok_or_else(|| DeserializeError::FailedToConvertType("DateTime".to_string()))
     }
@@ -54,9 +54,9 @@ impl FHIRJSONDeserializer for DateTime {
 
 impl FHIRJSONSerializer for DateTime {
     fn serialize_value(&self, writer: &mut dyn std::io::Write) -> Result<bool, SerializeError> {
-        writer.write_all(&[b'"'])?;
+        writer.write_all(b"\"")?;
         writer.write_all(self.to_string().as_bytes())?;
-        writer.write_all(&[b'"'])?;
+        writer.write_all(b"\"")?;
 
         Ok(true)
     }
@@ -110,25 +110,25 @@ impl FHIRJSONDeserializer for Date {
         s: &str,
     ) -> Result<Self, haste_fhir_serialization_json::errors::DeserializeError> {
         let mut json_value: Value = serde_json::from_str(s)?;
-        Date::from_serde_value(&mut json_value, Context::AsValue)
+        Date::from_serde_value(&raw mut json_value, Context::AsValue)
     }
 
     fn from_serde_value(
         value: *mut Value,
         context: haste_fhir_serialization_json::Context,
     ) -> Result<Self, haste_fhir_serialization_json::errors::DeserializeError> {
-        let value = unsafe { &mut *(value as *mut Value) };
+        let value = unsafe { &mut *(value.cast::<Value>()) };
         let k =
-            get_value(&value, &context).and_then(|v| v.as_str().and_then(|v| parse_date(v).ok()));
+            get_value(value, &context).and_then(|v| v.as_str().and_then(|v| parse_date(v).ok()));
         k.ok_or_else(|| DeserializeError::FailedToConvertType("Date".to_string()))
     }
 }
 
 impl FHIRJSONSerializer for Date {
     fn serialize_value(&self, writer: &mut dyn std::io::Write) -> Result<bool, SerializeError> {
-        writer.write_all(&[b'"'])?;
+        writer.write_all(b"\"")?;
         writer.write_all(self.to_string().as_bytes())?;
-        writer.write_all(&[b'"'])?;
+        writer.write_all(b"\"")?;
 
         Ok(true)
     }
@@ -182,25 +182,25 @@ impl FHIRJSONDeserializer for Time {
         s: &str,
     ) -> Result<Self, haste_fhir_serialization_json::errors::DeserializeError> {
         let mut json_value: Value = serde_json::from_str(s)?;
-        Time::from_serde_value(&mut json_value, Context::AsValue)
+        Time::from_serde_value(&raw mut json_value, Context::AsValue)
     }
 
     fn from_serde_value(
         value: *mut Value,
         context: haste_fhir_serialization_json::Context,
     ) -> Result<Self, haste_fhir_serialization_json::errors::DeserializeError> {
-        let value = unsafe { &mut *(value as *mut Value) };
+        let value = unsafe { &mut *(value.cast::<Value>()) };
         let k =
-            get_value(&value, &context).and_then(|v| v.as_str().and_then(|v| parse_time(v).ok()));
+            get_value(value, &context).and_then(|v| v.as_str().and_then(|v| parse_time(v).ok()));
         k.ok_or_else(|| DeserializeError::FailedToConvertType("Time".to_string()))
     }
 }
 
 impl FHIRJSONSerializer for Time {
     fn serialize_value(&self, writer: &mut dyn std::io::Write) -> Result<bool, SerializeError> {
-        writer.write_all(&[b'"'])?;
+        writer.write_all(b"\"")?;
         writer.write_all(self.to_string().as_bytes())?;
-        writer.write_all(&[b'"'])?;
+        writer.write_all(b"\"")?;
 
         Ok(true)
     }
@@ -254,25 +254,25 @@ impl FHIRJSONDeserializer for Instant {
         s: &str,
     ) -> Result<Self, haste_fhir_serialization_json::errors::DeserializeError> {
         let mut json_value: Value = serde_json::from_str(s)?;
-        Instant::from_serde_value(&mut json_value, Context::AsValue)
+        Instant::from_serde_value(&raw mut json_value, Context::AsValue)
     }
 
     fn from_serde_value(
         value: *mut Value,
         context: haste_fhir_serialization_json::Context,
     ) -> Result<Self, haste_fhir_serialization_json::errors::DeserializeError> {
-        let value = unsafe { &mut *(value as *mut Value) };
-        let k = get_value(&value, &context)
-            .and_then(|v| v.as_str().and_then(|v| parse_instant(v).ok()));
+        let value = unsafe { &mut *(value.cast::<Value>()) };
+        let k =
+            get_value(value, &context).and_then(|v| v.as_str().and_then(|v| parse_instant(v).ok()));
         k.ok_or_else(|| DeserializeError::FailedToConvertType("Instant".to_string()))
     }
 }
 
 impl FHIRJSONSerializer for Instant {
     fn serialize_value(&self, writer: &mut dyn std::io::Write) -> Result<bool, SerializeError> {
-        writer.write_all(&[b'"'])?;
+        writer.write_all(b"\"")?;
         writer.write_all(self.to_string().as_bytes())?;
-        writer.write_all(&[b'"'])?;
+        writer.write_all(b"\"")?;
 
         Ok(true)
     }
