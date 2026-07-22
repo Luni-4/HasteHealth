@@ -224,8 +224,10 @@ pub async fn server(
         );
 
     let smart_configuration_router = Router::new()
+        // Per spec must be at root of the fhir server which is why /fhir/{fhir_version}/.well-known/smart-configuration is used as the route.
+        // Because this is publically available it is not under protected_resources_router and does not require authentication.
         .route(
-            "/.well-known/smart-configuration",
+            "/fhir/{fhir_version}/.well-known/smart-configuration",
             get(auth_n::oidc::routes::discovery::smart_configuration),
         )
         .route_layer(
