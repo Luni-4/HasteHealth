@@ -1,4 +1,7 @@
 #![allow(non_snake_case)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+
 use haste_fhir_model::r4::generated::resources::*;
 use haste_fhir_model::r4::generated::types::*;
 use haste_fhir_operation_error::*;
