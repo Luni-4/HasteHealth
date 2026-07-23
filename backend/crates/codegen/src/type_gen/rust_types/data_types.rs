@@ -50,11 +50,11 @@ fn min_max_attribute(element: &ElementDefinition) -> TokenStream {
     }
 }
 
-fn wrap_if_vec(element: &ElementDefinition, field_value: TokenStream) -> TokenStream {
+fn wrap_if_vec(element: &ElementDefinition, field_value: &TokenStream) -> TokenStream {
     let cardinality = extract::cardinality(element);
 
     // Check the cardinality.
-    let wrapped_field = match cardinality.1 {
+    match cardinality.1 {
         extract::Max::Unlimited => quote! {
             Vec<#field_value>
         },
@@ -64,14 +64,12 @@ fn wrap_if_vec(element: &ElementDefinition, field_value: TokenStream) -> TokenSt
         extract::Max::Fixed(_n) => quote! {
             Vec<#field_value>
         },
-    };
-
-    wrapped_field
+    }
 }
 
 fn wrap_cardinality_and_optionality(
     element: &ElementDefinition,
-    field_value: TokenStream,
+    field_value: &TokenStream,
 ) -> TokenStream {
     let cardinality = extract::cardinality(element);
 
@@ -91,16 +89,15 @@ fn get_reference_target_attribute(element: &ElementDefinition) -> TokenStream {
     if let Some(type_vec) = element.type_.as_ref()
         && let Some(reference_type) = type_vec
             .iter()
-            .find(|t| t.code.value.as_ref().map(|s| s.as_str()) == Some("Reference"))
+            .find(|t| t.code.value.as_deref() == Some("Reference"))
         && let Some(targets) = reference_type.targetProfile.as_ref()
     {
         let profiles = targets
             .iter()
-            .filter_map(
-                |tp: &Box<haste_fhir_model::r4::generated::types::FHIRCanonical>| tp.value.as_ref(),
-            )
-            .filter_map(|tp| tp.split("/").last())
+            .filter_map(|tp| tp.as_ref().value.as_ref())
+            .filter_map(|tp| tp.split('/').next_back())
             .collect::<Vec<_>>();
+
         quote! {
             #[reference(targets = [#(#profiles),*])]
         }
@@ -111,7 +108,7 @@ fn get_reference_target_attribute(element: &ElementDefinition) -> TokenStream {
 
 fn get_struct_key_value(
     element: &ElementDefinition,
-    field_value_type_name: TokenStream,
+    field_value_type_name: &TokenStream,
 ) -> TokenStream {
     let description = extract::element_description(element);
     let field_name = extract::field_name(&extract::path(element));
@@ -152,10 +149,10 @@ fn get_struct_key_value(
     };
 
     // For typechoices set the header on the variant.
-    let target_types = if !conditionals::is_typechoice(element) {
-        get_reference_target_attribute(element)
-    } else {
+    let target_types = if conditionals::is_typechoice(element) {
         quote! {}
+    } else {
+        get_reference_target_attribute(element)
     };
 
     let cardinality_attribute = min_max_attribute(element);
@@ -192,18 +189,15 @@ fn resolve_content_reference<'a>(
         .unwrap()
         .element
         .iter()
-        .filter(|e| e.id == Some(content_reference_id.to_string()))
+        .filter(|e| e.id == Some(content_reference_id.clone()))
         .collect();
 
-    if content_reference_element.len() != 1 {
-        panic!(
-            "Content reference element not found {}",
-            content_reference_id
-        );
-    }
+    assert!(
+        content_reference_element.len() == 1,
+        "Content reference element not found {content_reference_id}",
+    );
 
-    let content_reference_element = content_reference_element[0];
-    content_reference_element
+    content_reference_element[0]
 }
 
 fn create_type_choice(
@@ -221,7 +215,7 @@ fn create_type_choice(
             let enum_name = format_ident!("{}", generate::capitalize(fhir_type));
             let rust_type = wrap_if_vec(
                 element,
-                fhir_type_to_rust_type(element, fhir_type, inlined_terminology),
+                &fhir_type_to_rust_type(element, fhir_type, inlined_terminology),
             );
             // For Reference types, extract target profiles and use as an attribute.
             let target_types = if *fhir_type == "Reference" {
@@ -246,8 +240,8 @@ fn create_type_choice(
         })
         .collect::<Vec<TokenStream>>();
 
-    let default_enum = format_ident!("{}", generate::capitalize(&types[0].to_string()));
-    let default_impl = if conditionals::should_be_boxed(&types[0].to_string()) {
+    let default_enum = format_ident!("{}", generate::capitalize(types[0]));
+    let default_impl = if conditionals::should_be_boxed(types[0]) {
         quote! {
             impl Default for #type_name {
                 fn default() -> Self {
@@ -290,25 +284,25 @@ fn process_leaf(
     if element.contentReference.is_some() {
         let content_reference_element = resolve_content_reference(sd, element);
         let field_type_name = field_typename(sd, content_reference_element, inlined_terminology);
-        get_struct_key_value(element, field_type_name)
+        get_struct_key_value(element, &field_type_name)
     } else if conditionals::is_typechoice(element) {
         let type_choice_name_ident = field_typename(sd, element, inlined_terminology);
         let type_choice = create_type_choice(sd, element, inlined_terminology);
 
         types.insert(type_choice_name_ident.to_string(), type_choice);
 
-        get_struct_key_value(element, quote! {#type_choice_name_ident})
+        get_struct_key_value(element, &quote! {#type_choice_name_ident})
     } else {
         let fhir_type = extract::field_types(element)[0];
         let rust_type = fhir_type_to_rust_type(element, fhir_type, inlined_terminology);
 
-        get_struct_key_value(element, rust_type)
+        get_struct_key_value(element, &rust_type)
     }
 }
 
-fn from_rust_type_to_fhir_primitive<'a>(
+fn from_rust_type_to_fhir_primitive(
     sd_ident: &Ident,
-    sd: &'a StructureDefinition,
+    sd: &StructureDefinition,
     inlined_terminology: &HashMap<String, String>,
 ) -> TokenStream {
     let value_element = sd
@@ -316,22 +310,21 @@ fn from_rust_type_to_fhir_primitive<'a>(
         .as_ref()
         .map(|s| &s.element)
         .and_then(|element_definitions| {
-            element_definitions
-                .iter()
-                .filter(|e| {
-                    e.path
-                        .value
-                        .as_ref()
-                        .map(|p| p.ends_with(".value"))
-                        .unwrap_or(false)
+            element_definitions.iter().find(|e| {
+                e.path.value.as_deref().is_some_and(|p| {
+                    // This is an FHIR path suffix comparison, not a file extension.
+                    #[allow(clippy::case_sensitive_file_extension_comparisons)]
+                    {
+                        p.ends_with(".value")
+                    }
                 })
-                .next()
+            })
         });
 
     if let Some(value_element) = value_element
-        && let Some(fhir_type) = extract::field_types(&*value_element).get(0)
+        && let Some(fhir_type) = extract::field_types(value_element).first()
     {
-        let value_type = fhir_type_to_rust_type(value_element, *fhir_type, inlined_terminology);
+        let value_type = fhir_type_to_rust_type(value_element, fhir_type, inlined_terminology);
 
         if value_element
             .min
@@ -366,8 +359,8 @@ fn from_rust_type_to_fhir_primitive<'a>(
 fn create_complex_struct(
     sd: &StructureDefinition,
     element: &ElementDefinition,
-    children: Vec<TokenStream>,
-    types: &mut NestedTypes,
+    children: &[TokenStream],
+    nested_types: &mut NestedTypes,
     rust_type_name_to_fhir_type: &mut HashMap<String, String>,
     inlined_terminology: &HashMap<String, String>,
 ) -> TokenStream {
@@ -403,12 +396,12 @@ fn create_complex_struct(
         }
     } else if conditionals::is_root(sd, element) && conditionals::is_resource_sd(sd) {
         let type_ = sd.type_.value.as_ref().unwrap();
-        let resource_type_attribute = if *type_ != struct_name {
+        let resource_type_attribute = if *type_ == struct_name {
+            quote! {}
+        } else {
             quote! {
                 #[fhir_resource_type = #type_]
             }
-        } else {
-            quote! {}
         };
 
         quote! {
@@ -448,9 +441,9 @@ fn create_complex_struct(
     };
 
     let i = struct_name.clone();
-    types.insert(i, type_value);
+    nested_types.insert(i, type_value);
     let i = format_ident!("{}", struct_name.clone());
-    get_struct_key_value(element, quote! {#i})
+    get_struct_key_value(element, &quote! {#i})
 }
 
 fn generate_from_structure_definition(
@@ -462,13 +455,13 @@ fn generate_from_structure_definition(
 
     let mut visitor =
         |element: &ElementDefinition, children: Vec<TokenStream>, _index: usize| -> TokenStream {
-            if children.len() == 0 {
-                process_leaf(&sd, element, &mut nested_types, inlined_terminology)
+            if children.is_empty() {
+                process_leaf(sd, element, &mut nested_types, inlined_terminology)
             } else {
                 create_complex_struct(
-                    &sd,
+                    sd,
                     element,
-                    children,
+                    &children,
                     &mut nested_types,
                     rust_type_name_to_fhir_type,
                     inlined_terminology,
@@ -505,8 +498,7 @@ fn generate_fhir_types_from_file(
 ) -> Result<GeneratedTypes, String> {
     let resource = load::load_from_file(file_path)?;
     // Extract StructureDefinitions
-    let structure_definitions = load::get_structure_definitions(&resource, level)
-        .map_err(|e| format!("Failed to get structure definitions: {}", e))?;
+    let structure_definitions = load::get_structure_definitions(&resource, level);
 
     let mut resources = vec![];
     let mut types = vec![];
@@ -527,20 +519,20 @@ fn generate_fhir_types_from_file(
             false
         }
     }) {
-        if conditionals::is_resource_sd(&sd) {
+        if conditionals::is_resource_sd(sd) {
             resource_types.push(ResourceTypeInfo {
-                resource_type: sd.type_.value.as_ref().unwrap().to_string(),
-                rust_type_name: sd.id.as_ref().unwrap().to_string(),
+                resource_type: sd.type_.value.as_ref().unwrap().clone(),
+                rust_type_name: sd.id.as_ref().unwrap().clone(),
             });
 
             resources.push(generate_from_structure_definition(
-                sd,
+                &sd,
                 inlined_terminology,
                 &mut rust_type_name_to_fhir_type,
             )?);
         } else {
             types.push(generate_from_structure_definition(
-                sd,
+                &sd,
                 inlined_terminology,
                 &mut rust_type_name_to_fhir_type,
             )?);
@@ -550,12 +542,12 @@ fn generate_fhir_types_from_file(
     Ok(GeneratedTypes {
         resources,
         types,
-        resource_types: resource_types,
+        resource_types,
         rust_type_name_to_fhir_type,
     })
 }
 
-fn generate_resource_type(resource_types: &Vec<ResourceTypeInfo>) -> TokenStream {
+fn generate_resource_type(resource_types: &[ResourceTypeInfo]) -> TokenStream {
     let data_ident = format_ident!("data");
     let get_resource_deserialize_variant = resource_types.iter().map(|resource_type_info| {
         let struct_name = format_ident!("{}", generate::capitalize(&resource_type_info.rust_type_name));
@@ -572,13 +564,13 @@ fn generate_resource_type(resource_types: &Vec<ResourceTypeInfo>) -> TokenStream
         );
         let type_name = &resource_type_info.resource_type;
 
-        if resource_type_info.rust_type_name != resource_type_info.resource_type {
+        if resource_type_info.rust_type_name == resource_type_info.resource_type {
             quote! {
-                #[serde(rename = #type_name)]
                 #struct_name
             }
         } else {
             quote! {
+                #[serde(rename = #type_name)]
                 #struct_name
             }
         }
@@ -589,13 +581,13 @@ fn generate_resource_type(resource_types: &Vec<ResourceTypeInfo>) -> TokenStream
         let resource_type = format_ident!("{}", generate::capitalize(struct_name));
         let resource_name = &resource_type_info.resource_type;
 
-        if resource_type != resource_name {
+        if resource_type == resource_name {
             quote! {
-                #struct_name | #resource_name => Ok(ResourceType::#resource_type)
+                #resource_name => Ok(ResourceType::#resource_type)
             }
         } else {
             quote! {
-                #resource_name => Ok(ResourceType::#resource_type)
+                #struct_name | #resource_name => Ok(ResourceType::#resource_type)
             }
         }
     });
@@ -696,119 +688,28 @@ pub fn generate(
     level: Option<&'static str>,
     inlined_terminology: &HashMap<String, String>,
 ) -> Result<GeneratedCode, String> {
-    let mut resource_code = quote! {
-        #![allow(non_snake_case)]
-        /// DO NOT EDIT THIS FILE. It is auto-generated by the FHIR Rust code generator.
-        use self::super::types::*;
-        use self::super::terminology;
-        use haste_reflect::{MetaValue, derive::Reflect};
-        use haste_fhir_serialization_json;
-        use thiserror::Error;
-    };
+    let (mut resource_code, mut type_code) = init_base_tokens();
+    let mut rust_type_name_to_fhir_type = BTreeMap::new();
+    let mut resource_types = vec![];
 
-    let mut type_code = quote! {
-        #![allow(non_snake_case)]
-        /// DO NOT EDIT THIS FILE. It is auto-generated by the FHIR Rust code generator.
-        use self::super::resources::Resource;
-        use self::super::terminology;
-        use haste_reflect::{MetaValue, derive::Reflect};
-        use haste_fhir_serialization_json;
-    };
-
-    let mut rust_type_name_to_fhir_type: BTreeMap<String, String> = BTreeMap::new();
-    let mut resource_types: Vec<ResourceTypeInfo> = vec![];
-
+    // 1. Process files from the provided directories
     for dir_path in file_paths {
-        let walker = WalkDir::new(dir_path).into_iter();
-        for entry in walker
-            .filter_map(|e| e.ok())
-            .filter(|e| e.metadata().unwrap().is_file())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
-        {
-            let generated_types =
-                generate_fhir_types_from_file(entry.path(), level, inlined_terminology)?;
-            let code = generated_types.resources;
-            rust_type_name_to_fhir_type.extend(generated_types.rust_type_name_to_fhir_type);
-            resource_types.extend(generated_types.resource_types);
-            resource_code = quote! {
-                #resource_code
-                #(#code)*
-            };
-
-            let code = generated_types.types;
-            type_code = quote! {
-                #type_code
-                #(#code)*
-            };
-        }
+        process_directory_files(
+            dir_path,
+            level,
+            inlined_terminology,
+            &mut resource_code,
+            &mut type_code,
+            &mut rust_type_name_to_fhir_type,
+            &mut resource_types,
+        )?;
     }
 
-    let resource_type_enum_variant_idents = resource_types.iter().map(|resource_type_info| {
-        let rust_struct_name = &resource_type_info.rust_type_name;
-        let resource_type_name = &resource_type_info.resource_type;
-
-        let variant = format_ident!("{}", generate::capitalize(rust_struct_name));
-
-        if rust_struct_name != resource_type_name {
-            quote! {
-                #[serde(rename = #resource_type_name)]
-                #variant(#variant)
-            }
-        } else {
-            quote! {
-                #variant(#variant)
-            }
-        }
-    });
-
-    let resource_to_resource_type_match_arms = resource_types.iter().map(|resource_type_info| {
-        let resource_type_ident = format_ident!("{}", &resource_type_info.rust_type_name);
-        quote! {
-            Resource::#resource_type_ident(_) => ResourceType::#resource_type_ident
-        }
-    });
-
-    let resource_to_id_match_arms = resource_types.iter().map(|resource_type_info| {
-        let resource_type_ident = format_ident!("{}", &resource_type_info.rust_type_name);
-        quote! {
-            Resource::#resource_type_ident(r) => &r.id
-        }
-    });
-
-    let resource_enum = quote! {
-        #[derive(
-            Clone,
-            Reflect,
-            Debug,
-            haste_fhir_serialization_json::derive::FHIRSerdeSerialize,
-            serde::Deserialize,
-        )]
-        #[fhir_serialize_type = "enum-variant"]
-        #[serde(tag = "resourceType")]
-        pub enum Resource {
-            #(#resource_type_enum_variant_idents),*
-        }
-
-        impl Resource {
-            #[doc = "Returns true if the resource is empty, false otherwise."]
-            pub fn empty(&self) -> bool {
-                false
-            }
-            pub fn resource_type(&self) -> ResourceType {
-                match self {
-              #(#resource_to_resource_type_match_arms),*
-                }
-            }
-            pub fn id<'a>(&'a self) -> &'a Option<String> {
-                match self {
-                #(#resource_to_id_match_arms),*
-                }
-            }
-        }
-    };
-
+    // 2. Generate the dynamic Resource enum and its standard traits
+    let resource_enum = build_resource_enum(&resource_types);
     let resource_type_type = generate_resource_type(&resource_types);
-    // Add resourcetype plus the base Resource enum.
+
+    // 3. Assemble final token streams
     resource_code = quote! {
         #resource_code
         #resource_enum
@@ -819,4 +720,137 @@ pub fn generate(
         resources: resource_code,
         types: type_code,
     })
+}
+
+fn init_base_tokens() -> (TokenStream, TokenStream) {
+    let resource_code = quote! {
+        #![allow(non_snake_case)]
+        /// DO NOT EDIT THIS FILE. It is auto-generated by the FHIR Rust code generator.
+        use self::super::types::*;
+        use self::super::terminology;
+        use haste_reflect::{MetaValue, derive::Reflect};
+        use haste_fhir_serialization_json;
+        use thiserror::Error;
+    };
+
+    let type_code = quote! {
+        #![allow(non_snake_case)]
+        /// DO NOT EDIT THIS FILE. It is auto-generated by the FHIR Rust code generator.
+        use self::super::resources::Resource;
+        use self::super::terminology;
+        use haste_reflect::{MetaValue, derive::Reflect};
+        use haste_fhir_serialization_json;
+    };
+
+    (resource_code, type_code)
+}
+
+fn process_directory_files(
+    dir_path: &str,
+    level: Option<&'static str>,
+    inlined_terminology: &HashMap<String, String>,
+    resource_code: &mut TokenStream,
+    type_code: &mut TokenStream,
+    rust_type_name_to_fhir_type: &mut BTreeMap<String, String>,
+    resource_types: &mut Vec<ResourceTypeInfo>,
+) -> Result<(), String> {
+    let walker = WalkDir::new(dir_path).into_iter();
+
+    for entry in walker
+        .filter_map(std::result::Result::ok)
+        .filter(|e| e.metadata().unwrap().is_file())
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
+    {
+        let generated_types =
+            generate_fhir_types_from_file(entry.path(), level, inlined_terminology)?;
+
+        rust_type_name_to_fhir_type.extend(generated_types.rust_type_name_to_fhir_type);
+        resource_types.extend(generated_types.resource_types);
+
+        let resources_tokens = generated_types.resources;
+        *resource_code = quote! {
+            #resource_code
+            #(#resources_tokens)*
+        };
+
+        let types_tokens = generated_types.types;
+        *type_code = quote! {
+            #type_code
+            #(#types_tokens)*
+        };
+    }
+
+    Ok(())
+}
+
+fn build_resource_enum(resource_types: &[ResourceTypeInfo]) -> TokenStream {
+    let enum_variants = resource_types.iter().map(|info| {
+        let rust_struct_name = &info.rust_type_name;
+        let resource_type_name = &info.resource_type;
+        let variant = format_ident!("{}", generate::capitalize(rust_struct_name));
+
+        if rust_struct_name == resource_type_name {
+            quote! { #variant(#variant) }
+        } else {
+            quote! {
+                #[serde(rename = #resource_type_name)]
+                #variant(#variant)
+            }
+        }
+    });
+
+    let (type_match_arms, id_match_arms) = build_enum_match_arms(resource_types);
+
+    quote! {
+        #[derive(
+            Clone,
+            Reflect,
+            Debug,
+            haste_fhir_serialization_json::derive::FHIRSerdeSerialize,
+            serde::Deserialize,
+        )]
+        #[fhir_serialize_type = "enum-variant"]
+        #[serde(tag = "resourceType")]
+        pub enum Resource {
+            #(#enum_variants),*
+        }
+
+        impl Resource {
+            #[doc = "Returns true if the resource is empty, false otherwise."]
+            pub fn empty(&self) -> bool {
+                false
+            }
+            pub fn resource_type(&self) -> ResourceType {
+                match self {
+                    #(#type_match_arms),*
+                }
+            }
+            pub fn id<'a>(&'a self) -> &'a Option<String> {
+                match self {
+                    #(#id_match_arms),*
+                }
+            }
+        }
+    }
+}
+
+fn build_enum_match_arms(
+    resource_types: &[ResourceTypeInfo],
+) -> (Vec<TokenStream>, Vec<TokenStream>) {
+    let mut type_arms = vec![];
+    let mut id_arms = vec![];
+
+    for info in resource_types {
+        let resource_type_ident = format_ident!("{}", &info.rust_type_name);
+
+        type_arms.push(quote! {
+            Resource::#resource_type_ident(_) => ResourceType::#resource_type_ident
+        });
+
+        id_arms.push(quote! {
+            Resource::#resource_type_ident(r) => &r.id
+        });
+    }
+
+    (type_arms, id_arms)
 }

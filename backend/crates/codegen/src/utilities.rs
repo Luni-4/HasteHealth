@@ -175,99 +175,108 @@ pub mod conversion {
     use proc_macro2::TokenStream;
     use quote::{format_ident, quote};
 
-    pub fn fhir_type_to_rust_type(
+    pub fn fhir_type_to_rust_type<S: std::hash::BuildHasher>(
         element: &ElementDefinition,
         fhir_type: &str,
-        inlined_terminology: &HashMap<String, String>,
+        inlined_terminology: &HashMap<String, String, S>,
     ) -> TokenStream {
-        let path = element.path.value.as_ref().map(|p| p.as_str());
+        let path_opt = element.path.value.as_deref();
 
-        match path {
-            Some("unsignedInt.value") | Some("positiveInt.value") => {
+        match path_opt {
+            Some("unsignedInt.value" | "positiveInt.value") => {
                 let k = format_ident!("{}", "u64");
-                quote! {
-                    #k
-                }
+                quote! { #k }
             }
-
-            _ => {
-                if let Some(rust_primitive) = RUST_PRIMITIVES.get(fhir_type) {
-                    // Special handling for instance which should use instant type,
-                    let path = path.unwrap();
-                    if path == "instant.value" {
-                        let k = RUST_PRIMITIVES
-                            .get("http://hl7.org/fhirpath/System.Instant")
-                            .unwrap()
-                            .parse::<TokenStream>()
-                            .unwrap();
-
-                        quote! {
-                            #k
-                        }
-                    } else {
-                        let k = rust_primitive.parse::<TokenStream>().unwrap();
-                        quote! {
-                            #k
-                        }
-                    }
-                } else if let Some(primitive) = FHIR_PRIMITIVES.get(fhir_type) {
-                    // Support for inlined types.
-                    // inlined could be a url | version for canonical.
-                    // Only do inlined if the binding is required and exists as inlined terminology.
-
-                    if Some(&BindingStrength::required())
-                        == element.binding.as_ref().map(|b| &b.strength)
-                        && let Some(canonical_string) = element
-                            .binding
-                            .as_ref()
-                            .and_then(|b| b.valueSet.as_ref())
-                            .and_then(|b| b.value.as_ref())
-                            .map(|u| u.as_str())
-                        && let Some(url) = canonical_string.split('|').next()
-                        && let Some(inlined) = inlined_terminology.get(url)
-                    {
-                        let inline_type = format_ident!("{}", inlined);
-                        quote! {
-                            terminology::BoundCode<terminology::#inline_type>
-                        }
-                    } else {
-                        let k = format_ident!("{}", primitive.clone());
-                        quote! {
-                            Box<#k>
-                        }
-                    }
-                } else {
-                    let k = format_ident!("{}", fhir_type.to_string());
-                    quote! {
-                        Box<#k>
-                    }
-                }
+            Some(path) => {
+                process_fhir_type_with_path(element, fhir_type, path, inlined_terminology)
             }
+            None => generate_fallback_type(fhir_type),
         }
+    }
+
+    fn process_fhir_type_with_path<S: std::hash::BuildHasher>(
+        element: &ElementDefinition,
+        fhir_type: &str,
+        path: &str,
+        inlined_terminology: &HashMap<String, String, S>,
+    ) -> TokenStream {
+        if let Some(rust_primitive) = RUST_PRIMITIVES.get(fhir_type) {
+            resolve_primitive_type(path, rust_primitive)
+        } else if let Some(primitive) = FHIR_PRIMITIVES.get(fhir_type) {
+            resolve_inline_or_boxed_terminology(element, primitive, inlined_terminology)
+        } else {
+            generate_fallback_type(fhir_type)
+        }
+    }
+
+    fn resolve_primitive_type(path: &str, rust_primitive: &str) -> TokenStream {
+        if path == "instant.value" {
+            // Safe lookups since these keys are hardcoded invariants of the generator setup
+            let k = RUST_PRIMITIVES
+                .get("http://hl7.org/fhirpath/System.Instant")
+                .expect("System.Instant mapping must exist")
+                .parse::<TokenStream>()
+                .expect("Failed to parse System.Instant token");
+
+            quote! { #k }
+        } else {
+            let k = rust_primitive
+                .parse::<TokenStream>()
+                .expect("Failed to parse standard primitive token");
+
+            quote! { #k }
+        }
+    }
+
+    fn resolve_inline_or_boxed_terminology<S: std::hash::BuildHasher>(
+        element: &ElementDefinition,
+        primitive: &str,
+        inlined_terminology: &HashMap<String, String, S>,
+    ) -> TokenStream {
+        let is_binding_required =
+            Some(&BindingStrength::required()) == element.binding.as_ref().map(|b| &b.strength);
+
+        if is_binding_required
+            && let Some(canonical_string) = element
+                .binding
+                .as_ref()
+                .and_then(|b| b.valueSet.as_ref())
+                .and_then(|b| b.value.as_ref())
+                .map(std::string::String::as_str)
+            && let Some(url) = canonical_string.split('|').next()
+            && let Some(inlined) = inlined_terminology.get(url)
+        {
+            let inline_type = format_ident!("{}", inlined);
+            return quote! { terminology::BoundCode<terminology::#inline_type> };
+        }
+
+        let k = format_ident!("{}", primitive);
+        quote! { Box<#k> }
+    }
+
+    fn generate_fallback_type(fhir_type: &str) -> TokenStream {
+        let k = format_ident!("{}", fhir_type.to_string());
+        quote! { Box<#k> }
     }
 }
 
 pub mod extract {
     use haste_fhir_model::r4::generated::resources::StructureDefinition;
     use haste_fhir_model::r4::generated::types::ElementDefinition;
-    pub fn field_types<'a>(element: &ElementDefinition) -> Vec<&str> {
-        let codes = element
-            .type_
-            .as_ref()
-            .map(|types| {
-                types
-                    .iter()
-                    .filter_map(|t| t.code.value.as_ref().map(|v| v.as_str()))
-                    .collect()
-            })
-            .unwrap_or_else(|| vec![]);
-        codes
+    pub fn field_types(element: &ElementDefinition) -> Vec<&str> {
+        element.type_.as_ref().map_or_else(Vec::new, |types| {
+            types
+                .iter()
+                .filter_map(|t| t.code.value.as_deref())
+                .collect()
+        })
     }
 
+    #[must_use]
     pub fn field_name(path: &str) -> String {
         let field_name: String = path
             .split('.')
-            .last()
+            .next_back()
             .unwrap_or("")
             .chars()
             .enumerate()
@@ -279,13 +288,11 @@ pub mod extract {
                 }
             })
             .collect();
-        let removed_x = if field_name.ends_with("[x]") {
+        if field_name.ends_with("[x]") {
             field_name.replace("[x]", "")
         } else {
             field_name.clone()
-        };
-
-        removed_x
+        }
     }
 
     pub fn is_abstract(sd: &StructureDefinition) -> bool {
@@ -293,7 +300,7 @@ pub mod extract {
     }
 
     pub fn path(element: &ElementDefinition) -> String {
-        element.path.value.clone().unwrap_or_else(|| "".to_string())
+        element.path.value.clone().unwrap_or_default()
     }
     pub fn element_description(element: &ElementDefinition) -> String {
         element
@@ -301,9 +308,17 @@ pub mod extract {
             .as_ref()
             .and_then(|d| d.value.as_ref())
             .cloned()
-            .unwrap_or_else(|| "".to_string())
+            .unwrap_or_default()
     }
 
+    /// Extracts the FHIR type name from a given element definition.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if:
+    /// - The element is a root element but the `StructureDefinition` does not specify a root type.
+    /// - The element contains multiple FHIR types or zero types, as polimorphic elements (like `value[x]`)
+    ///   cannot be mapped to a single string type through this function.
     pub fn fhir_type(sd: &StructureDefinition, element: &ElementDefinition) -> String {
         if crate::utilities::conditionals::is_root(sd, element) {
             sd.type_
@@ -334,22 +349,23 @@ pub mod extract {
     }
 
     pub fn cardinality(element: &ElementDefinition) -> (usize, Max) {
+        #[allow(clippy::cast_possible_truncation)]
         let min = element.min.as_ref().and_then(|m| m.value).map_or(0, |m| m) as usize;
 
         let max = element
             .max
             .as_ref()
             .and_then(|m| m.value.as_ref())
-            .map(|v| v.as_str())
+            .map(std::string::String::as_str)
             .and_then(|s| {
                 if s == "*" {
                     Some(Max::Unlimited)
                 } else {
-                    s.parse::<usize>().ok().and_then(|i| Some(Max::Fixed(i)))
+                    s.parse::<usize>().ok().map(Max::Fixed)
                 }
             });
 
-        (min, max.unwrap_or_else(|| Max::Fixed(1)))
+        (min, max.unwrap_or(Max::Fixed(1)))
     }
 }
 
@@ -365,6 +381,7 @@ pub mod generate {
     use crate::utilities::{FHIR_PRIMITIVES, conditionals, conversion, extract};
 
     /// Capitalize the first character in s.
+    #[must_use]
     pub fn capitalize(s: &str) -> String {
         let mut c = s.chars();
         match c.next() {
@@ -375,18 +392,24 @@ pub mod generate {
 
     pub fn struct_name(sd: &StructureDefinition, element: &ElementDefinition) -> String {
         if conditionals::is_root(sd, element) {
-            let mut interface_name: String = capitalize(sd.id.as_ref().unwrap());
+            // Safely access sd.id; if missing, falls back to an empty string
+            let id_str = sd.id.as_deref().unwrap_or("");
+            let mut interface_name = capitalize(id_str);
+
             if conditionals::is_primitive_sd(sd) {
-                interface_name = "FHIR".to_owned() + &interface_name;
+                interface_name = format!("FHIR{interface_name}");
             }
+
             interface_name
         } else {
+            // Safely process element.id, handling the None case without panicking
             element
                 .id
-                .as_ref()
-                .map(|p| p.split("."))
-                .map(|p| p.map(capitalize).collect::<Vec<String>>().join(""))
-                .unwrap()
+                .as_deref()
+                .map(|id_str| {
+                    id_str.split('.').map(capitalize).collect::<String>() // Directly collects into String, avoiding Vec allocation
+                })
+                .unwrap_or_default()
                 .replace("[x]", "")
         }
     }
@@ -415,33 +438,35 @@ pub mod generate {
             .collect()
     }
 
-    pub fn field_typename(
+    /// Generates the Rust type name for an FHIR element.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the element is not a type choice or nested complex type and does
+    /// not contain a valid FHIR type definition. This indicates an invalid
+    /// `ElementDefinition` that cannot be converted into a Rust type.
+    pub fn field_typename<S: std::hash::BuildHasher>(
         sd: &StructureDefinition,
         element: &ElementDefinition,
-        inlined_terminology: &HashMap<String, String>,
+        inlined_terminology: &HashMap<String, String, S>,
     ) -> TokenStream {
-        let field_value_type_name = if conditionals::is_typechoice(element) {
+        if conditionals::is_typechoice(element) {
             let k = format_ident!("{}", type_choice_name(sd, element));
-            quote! {
-                #k
-            }
+            quote! { #k }
         } else if conditionals::is_nested_complex(element) {
             let k = format_ident!("{}", struct_name(sd, element));
-            quote! {
-                #k
-            }
+            quote! { #k }
         } else {
-            let fhir_type = element.type_.as_ref().unwrap()[0]
-                .code
+            let fhir_type = element
+                .type_
                 .as_ref()
-                .value
-                .as_ref()
-                .unwrap();
+                .and_then(|types| types.first())
+                .map(|t| &t.code)
+                .and_then(|code| code.value.as_ref())
+                .expect("ElementDefinition must contain a FHIR type code");
 
             conversion::fhir_type_to_rust_type(element, fhir_type, inlined_terminology)
-        };
-
-        field_value_type_name
+        }
     }
 }
 
@@ -500,12 +525,19 @@ pub mod load {
 
     use crate::utilities::extract;
 
+    /// Loads a FHIR resource from a JSON file.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - the file cannot be read; or
+    /// - the file does not contain a valid FHIR resource encoded as JSON.
     pub fn load_from_file(file_path: &Path) -> Result<Resource, String> {
-        let data = std::fs::read_to_string(file_path)
-            .map_err(|e| format!("Failed to read file: {}", e))?;
+        let data =
+            std::fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {e}"))?;
 
         let resource = serde_json::from_str::<Resource>(&data)
-            .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+            .map_err(|e| format!("Failed to parse JSON: {e}"))?;
 
         Ok(resource)
     }
@@ -513,70 +545,50 @@ pub mod load {
     pub fn get_structure_definitions<'a>(
         resource: &'a Resource,
         level: Option<&'static str>,
-    ) -> Result<Vec<&'a StructureDefinition>, String> {
+    ) -> Vec<&'a StructureDefinition> {
+        let matches_level = |sd: &&StructureDefinition| {
+            if let Some(level) = level {
+                match &sd.kind {
+                    kind if kind == &StructureDefinitionKind::resource()
+                        || kind == &StructureDefinitionKind::null() =>
+                    {
+                        level == "resource"
+                    }
+                    kind if kind == &StructureDefinitionKind::complex_type() => {
+                        level == "complex-type"
+                    }
+                    kind if kind == &StructureDefinitionKind::primitive_type() => {
+                        level == "primitive-type"
+                    }
+                    _ => false,
+                }
+            } else {
+                true
+            }
+        };
+
         match resource {
-            Resource::Bundle(bundle) => {
-                if let Some(entries) = bundle.entry.as_ref() {
-                    let sds = entries
+            Resource::Bundle(bundle) => bundle
+                .entry
+                .as_ref()
+                .map(|entries| {
+                    entries
                         .iter()
                         .filter_map(|e| e.resource.as_ref())
-                        .filter_map(|sd| match sd.as_ref() {
+                        .filter_map(|r| match r.as_ref() {
                             Resource::StructureDefinition(sd) => Some(sd),
                             _ => None,
-                        });
+                        })
+                        .filter(matches_level)
+                        .collect()
+                })
+                .unwrap_or_default(),
 
-                    let filtered_sds = sds.filter(move |sd| {
-                        if let Some(level) = level {
-                            match &sd.kind {
-                                kind if kind == &StructureDefinitionKind::resource()
-                                    || kind == &StructureDefinitionKind::null() =>
-                                {
-                                    level == "resource"
-                                }
-                                kind if kind == &StructureDefinitionKind::complex_type() => {
-                                    level == "complex-type"
-                                }
-                                kind if kind == &StructureDefinitionKind::primitive_type() => {
-                                    level == "primitive-type"
-                                }
-                                _ => false,
-                            }
-                        } else {
-                            true
-                        }
-                    });
-
-                    Ok(filtered_sds.collect())
-                } else {
-                    Ok(vec![])
-                }
-            }
             Resource::StructureDefinition(sd) => {
-                let resources = std::iter::once(sd);
-                let filtered_resources = resources.filter(|sd| {
-                    if let Some(level) = level {
-                        match &sd.kind {
-                            kind if kind == &StructureDefinitionKind::resource()
-                                || kind == &StructureDefinitionKind::null() =>
-                            {
-                                level == "resource"
-                            }
-                            kind if kind == &StructureDefinitionKind::complex_type() => {
-                                level == "complex-type"
-                            }
-                            kind if kind == &StructureDefinitionKind::primitive_type() => {
-                                level == "primitive-type"
-                            }
-                            _ => false,
-                        }
-                    } else {
-                        true
-                    }
-                });
-
-                Ok(filtered_resources.collect())
+                std::iter::once(sd).filter(matches_level).collect()
             }
-            _ => Ok(vec![]),
+
+            _ => Vec::new(),
         }
     }
 }
