@@ -120,7 +120,7 @@ fn generate_testcases_for_resource(
                         )
                         .into(),
                     )),
-                    direction: Some(AssertDirectionCodes::RESPONSE),
+                    direction: Some(AssertDirectionCodes::response()),
                     resource: defined_type.clone(),
                     warningOnly: Box::new(false.into()),
                     ..Default::default()
@@ -178,7 +178,7 @@ fn generate_testscript_from_file(file_path: &Path) -> Result<TestScript, String>
     let tag = create_tag(file_path);
 
     testscript.url = Box::new(tag.to_string().into());
-    testscript.status = PublicationStatus::ACTIVE;
+    testscript.status = PublicationStatus::active();
     testscript.id = Some(tag.to_string());
     testscript.name = Box::new(tag.to_string().into());
 

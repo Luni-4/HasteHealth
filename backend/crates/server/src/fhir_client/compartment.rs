@@ -30,11 +30,11 @@ fn compartment_type_to_resource_type(
     compartment_type: &BoundCode<CompartmentType>,
 ) -> Option<ResourceType> {
     match compartment_type {
-        c if c == &CompartmentType::DEVICE => Some(ResourceType::Device),
-        c if c == &CompartmentType::ENCOUNTER => Some(ResourceType::Encounter),
-        c if c == &CompartmentType::PATIENT => Some(ResourceType::Patient),
-        c if c == &CompartmentType::PRACTITIONER => Some(ResourceType::Practitioner),
-        c if c == &CompartmentType::RELATED_PERSON => Some(ResourceType::RelatedPerson),
+        c if c == &CompartmentType::device() => Some(ResourceType::Device),
+        c if c == &CompartmentType::encounter() => Some(ResourceType::Encounter),
+        c if c == &CompartmentType::patient() => Some(ResourceType::Patient),
+        c if c == &CompartmentType::practitioner() => Some(ResourceType::Practitioner),
+        c if c == &CompartmentType::related_person() => Some(ResourceType::RelatedPerson),
         _ => None,
     }
 }
@@ -55,7 +55,7 @@ pub async fn process_compartment_request<
         compartment_type.as_ref() == Some(&compartment_request.resource_type)
     }) else {
         return Err(OperationOutcomeError::error(
-            IssueType::NOT_FOUND,
+            IssueType::not_found(),
             format!(
                 "Compartment definition for resource type {:?} not found.",
                 compartment_request.resource_type
@@ -72,7 +72,7 @@ pub async fn process_compartment_request<
                 })
             }) else {
                 return Err(OperationOutcomeError::error(
-                    IssueType::NOT_FOUND,
+                    IssueType::not_found(),
                     format!(
                         "Compartment definition for resource type '{}' does not include resource type '{}'.",
                         compartment_request.resource_type.as_ref(),
@@ -134,7 +134,7 @@ pub async fn process_compartment_request<
         // FHIRRequest::Read(read_request) => Ok(()),
         _ => {
             return Err(OperationOutcomeError::error(
-                IssueType::NOT_SUPPORTED,
+                IssueType::not_supported(),
                 "Only type search requests and reads are supported in compartment processing."
                     .to_string(),
             ));

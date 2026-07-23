@@ -70,7 +70,7 @@ fn create_capability_rest_statement(
     Ok(CapabilityStatementRestResource {
         type_: BoundCode::<ResourceTypes>::new(&sd_type).ok_or_else(|| {
             OperationOutcomeError::error(
-                IssueType::INVALID,
+                IssueType::invalid(),
                 format!(
                     "Failed to parse resource type in capabilities generation: '{}'",
                     sd_type
@@ -103,14 +103,14 @@ fn create_capability_rest_statement(
         ),
         interaction: Some(
             vec![
-                TypeRestfulInteraction::READ,
-                TypeRestfulInteraction::VREAD,
-                TypeRestfulInteraction::UPDATE,
-                TypeRestfulInteraction::DELETE,
-                TypeRestfulInteraction::SEARCH_TYPE,
-                TypeRestfulInteraction::CREATE,
-                TypeRestfulInteraction::HISTORY_INSTANCE,
-                TypeRestfulInteraction::HISTORY_TYPE,
+                TypeRestfulInteraction::read(),
+                TypeRestfulInteraction::vread(),
+                TypeRestfulInteraction::update(),
+                TypeRestfulInteraction::delete(),
+                TypeRestfulInteraction::search_type(),
+                TypeRestfulInteraction::create(),
+                TypeRestfulInteraction::history_instance(),
+                TypeRestfulInteraction::history_type(),
             ]
             .into_iter()
             .map(|code| CapabilityStatementRestResourceInteraction {
@@ -119,7 +119,7 @@ fn create_capability_rest_statement(
             })
             .collect(),
         ),
-        versioning: Some(VersioningPolicy::VERSIONED),
+        versioning: Some(VersioningPolicy::versioned()),
         ..Default::default()
     })
 }
@@ -137,8 +137,8 @@ async fn generate_capabilities<Repo: Repository, Search: SearchEngine>(
     let sps = sps?;
 
     Ok(CapabilityStatement {
-        status: PublicationStatus::ACTIVE,
-        kind: CapabilityStatementKind::CAPABILITY,
+        status: PublicationStatus::active(),
+        kind: CapabilityStatementKind::capability(),
         date: Box::new(FHIRDateTime {
             value: Some(DateTime::Year(2025)),
             ..Default::default()
@@ -147,9 +147,9 @@ async fn generate_capabilities<Repo: Repository, Search: SearchEngine>(
             value: Some("application/fhir+json".to_string()),
             ..Default::default()
         })],
-        fhirVersion: FHIRVersion::V401,
+        fhirVersion: FHIRVersion::v401(),
         rest: Some(vec![CapabilityStatementRest {
-            mode: RestfulCapabilityMode::SERVER,
+            mode: RestfulCapabilityMode::server(),
             security: Some(CapabilityStatementRestSecurity {
                 cors: Some(Box::new(FHIRBoolean {
                     value: Some(true),

@@ -51,7 +51,7 @@ pub(crate) async fn hl7v2(
 
             let template = environment
                 .get_template(&main)
-                .map_err(|e| OperationOutcomeError::error(IssueType::EXCEPTION, e.to_string()))?;
+                .map_err(|e| OperationOutcomeError::error(IssueType::exception(), e.to_string()))?;
 
             for stream in listener.incoming() {
                 let mut stream = match stream {
@@ -105,7 +105,7 @@ pub(crate) async fn hl7v2(
 
                     match resource {
                         Resource::Bundle(bundle) => match &bundle.type_ {
-                            b if b == &BundleType::BATCH => {
+                            b if b == &BundleType::batch() => {
                                 match fhir_client.batch((), bundle).await {
                                     Ok(_) => {
                                         if let Err(e) = stream.write_all(&MllpFormatter::ack()) {
@@ -122,7 +122,7 @@ pub(crate) async fn hl7v2(
                                     }
                                 }
                             }
-                            b if b == &BundleType::TRANSACTION => {
+                            b if b == &BundleType::transaction() => {
                                 match fhir_client.transaction((), bundle).await {
                                     Ok(_) => {
                                         if let Err(e) = stream.write_all(&MllpFormatter::ack()) {

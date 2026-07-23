@@ -111,7 +111,7 @@ async fn create_or_retrieve_user_tenant<
             "default",
             &SubscriptionTier::Free,
             haste_fhir_model::r4::generated::resources::User {
-                role: terminology::UserRole::OWNER,
+                role: terminology::UserRole::owner(),
                 email: Some(Box::new(FHIRString {
                     value: Some(signup_form.email.to_string()),
                     ..Default::default()
@@ -153,7 +153,7 @@ pub async fn global_signup_post<
 ) -> Result<Response, OperationOutcomeError> {
     if form.csrf_token != csrf_token {
         return Err(OperationOutcomeError::error(
-            IssueType::INVALID,
+            IssueType::invalid(),
             "Invalid CSRF Token".to_string(),
         ));
     }

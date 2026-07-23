@@ -108,7 +108,7 @@ async fn resolve_identity_providers<
                             .filter_map(|idp_ref| idp_ref.value.as_ref())
                             .map(|idp_ref| BundleEntry {
                                 request: Some(BundleEntryRequest {
-                                    method: HttpVerb::GET,
+                                    method: HttpVerb::get(),
                                     url: Box::new(FHIRUri {
                                         value: Some(idp_ref.to_string()),
                                         ..Default::default()
@@ -161,7 +161,7 @@ pub async fn login_post<
 ) -> Result<Response, OperationOutcomeError> {
     if login_data.csrf_token != csrf_token {
         return Err(OperationOutcomeError::error(
-            IssueType::INVALID,
+            IssueType::invalid(),
             "Invalid CSRF Token".to_string(),
         ));
     }

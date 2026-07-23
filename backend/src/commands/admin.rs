@@ -149,7 +149,7 @@ pub(crate) async fn admin(command: &AdminCommands) -> Result<(), OperationOutcom
             .merge(Toml::file("haste.toml"))
             .merge(Env::prefixed("HASTE_"))
             .extract()
-            .map_err(|e| OperationOutcomeError::error(IssueType::EXCEPTION, e.to_string()))?,
+            .map_err(|e| OperationOutcomeError::error(IssueType::exception(), e.to_string()))?,
     );
 
     match &command {
@@ -183,7 +183,7 @@ pub(crate) async fn admin(command: &AdminCommands) -> Result<(), OperationOutcom
                             .unwrap_or(UserSubscriptionChoice::Free),
                     ),
                     haste_fhir_model::r4::generated::resources::User {
-                        role: UserRole::OWNER,
+                        role: UserRole::owner(),
                         email: Some(Box::new(
                             haste_fhir_model::r4::generated::types::FHIRString {
                                 value: Some(owner_email.clone()),
@@ -198,7 +198,7 @@ pub(crate) async fn admin(command: &AdminCommands) -> Result<(), OperationOutcom
 
                 if let Err(operation_outcome_error) = result.as_ref()
                     && let Some(issue) = operation_outcome_error.outcome().issue.first()
-                    && issue.code == IssueType::DUPLICATE
+                    && issue.code == IssueType::duplicate()
                 {
                     println!("Tenant with ID '{}' already exists.", id);
                     return Ok(());
@@ -226,7 +226,7 @@ pub(crate) async fn admin(command: &AdminCommands) -> Result<(), OperationOutcom
                     &services,
                     &tenant,
                     haste_fhir_model::r4::generated::resources::User {
-                        role: UserRole::ADMIN,
+                        role: UserRole::admin(),
                         email: Some(Box::new(
                             haste_fhir_model::r4::generated::types::FHIRString {
                                 value: Some(email.clone()),
@@ -261,7 +261,7 @@ pub(crate) async fn admin(command: &AdminCommands) -> Result<(), OperationOutcom
                 ));
 
                 let transaction_bundle = Bundle {
-                    type_: BundleType::TRANSACTION,
+                    type_: BundleType::transaction(),
                     entry: Some(vec![
                         BundleEntry {
                             fullUrl: Some(Box::new(FHIRUri {
@@ -269,7 +269,7 @@ pub(crate) async fn admin(command: &AdminCommands) -> Result<(), OperationOutcom
                                 ..Default::default()
                             })),
                             request: Some(BundleEntryRequest {
-                                method: HttpVerb::POST,
+                                method: HttpVerb::post(),
                                 url: Box::new(FHIRUri {
                                     value: Some("AccessPolicyV2".to_string()),
                                     ..Default::default()
@@ -281,7 +281,7 @@ pub(crate) async fn admin(command: &AdminCommands) -> Result<(), OperationOutcom
                                     value: Some("ADMIN".to_string()),
                                     ..Default::default()
                                 }),
-                                engine: AccessPolicyv2Engine::FULL_ACCESS,
+                                engine: AccessPolicyv2Engine::full_access(),
                                 target: Some(vec![AccessPolicyV2Target {
                                     link: Box::new(Reference {
                                         reference: Some(Box::new(FHIRString {
@@ -301,7 +301,7 @@ pub(crate) async fn admin(command: &AdminCommands) -> Result<(), OperationOutcom
                                 ..Default::default()
                             })),
                             request: Some(BundleEntryRequest {
-                                method: HttpVerb::PUT,
+                                method: HttpVerb::put(),
                                 url: Box::new(FHIRUri {
                                     value: Some(format!("ClientApplication/{}", id)),
                                     ..Default::default()
@@ -323,8 +323,10 @@ pub(crate) async fn admin(command: &AdminCommands) -> Result<(), OperationOutcom
                                         value: Some("CLI".to_string()),
                                         ..Default::default()
                                     }),
-                                    grantType: vec![ClientapplicationGrantType::CLIENT_CREDENTIALS],
-                                    responseTypes: ClientapplicationResponseTypes::TOKEN,
+                                    grantType: vec![
+                                        ClientapplicationGrantType::client_credentials(),
+                                    ],
+                                    responseTypes: ClientapplicationResponseTypes::token(),
                                     ..Default::default()
                                 },
                             ))),

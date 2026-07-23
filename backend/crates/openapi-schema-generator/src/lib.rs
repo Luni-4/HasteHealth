@@ -264,9 +264,9 @@ fn resource_search_parameters_schema(
             base == Some(resource_name)
                 || base == Some("Resource")
                 || base == Some("DomainResource")
-        }) && sp.type_ != SearchParamType::COMPOSITE
+        }) && sp.type_ != SearchParamType::composite()
     }) {
-        let search_type = if sp.type_ == SearchParamType::NUMBER {
+        let search_type = if sp.type_ == SearchParamType::number() {
             "number"
         } else {
             "string"
@@ -432,13 +432,13 @@ pub fn open_api_schema_generator(
 
     let complex_sds = sds
         .iter()
-        .filter(|sd| sd.kind == StructureDefinitionKind::COMPLEX_TYPE);
+        .filter(|sd| sd.kind == StructureDefinitionKind::complex_type());
 
     for sd in complex_sds {
         let json_schema = haste_sd_to_json_schema::isolated_schema("#/components/schemas", sd)?;
         let type_name = sd.type_.value.as_ref().ok_or_else(|| {
             OperationOutcomeError::error(
-                IssueType::STRUCTURE,
+                IssueType::structure(),
                 format!(
                     "StructureDefinition missing type for id {}",
                     sd.id.as_ref().unwrap_or(&"unknown".to_string())
@@ -453,13 +453,13 @@ pub fn open_api_schema_generator(
 
     let resource_sds = sds
         .iter()
-        .filter(|sd| sd.kind == StructureDefinitionKind::RESOURCE);
+        .filter(|sd| sd.kind == StructureDefinitionKind::resource());
 
     for sd in resource_sds {
         let json_schema = haste_sd_to_json_schema::isolated_schema("#/components/schemas", sd)?;
         let resource_name = sd.type_.value.as_ref().ok_or_else(|| {
             OperationOutcomeError::error(
-                IssueType::STRUCTURE,
+                IssueType::structure(),
                 format!(
                     "StructureDefinition missing type for id {}",
                     sd.id.as_ref().unwrap_or(&"unknown".to_string())

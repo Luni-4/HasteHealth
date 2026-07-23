@@ -73,11 +73,11 @@ impl<
                         FHIRRequest::Create(create_request) => {
                             if let Resource::Project(project) = &create_request.resource {
                                 let fhir_version = match &project.fhirVersion {
-                                    f if f == &SupportedFhirVersion::R4 => {
+                                    f if f == &SupportedFhirVersion::r4() => {
                                         Ok(SupportedFHIRVersions::R4)
                                     }
                                     _ => Err(OperationOutcomeError::fatal(
-                                        IssueType::INVALID,
+                                        IssueType::invalid(),
                                         format!(
                                             "Invalid FHIR Version '{:?}'",
                                             &project.fhirVersion
@@ -115,7 +115,7 @@ impl<
                                                     name: name,
                                                     fhirVersion: match project_model.fhir_version {
                                                         SupportedFHIRVersions::R4 => {
-                                                            SupportedFhirVersion::R4
+                                                            SupportedFhirVersion::r4()
                                                         }
                                                     },
                                                     ..Default::default()
@@ -129,7 +129,7 @@ impl<
                                 Ok(res)
                             } else {
                                 Err(OperationOutcomeError::fatal(
-                                    IssueType::INVALID,
+                                    IssueType::invalid(),
                                     "Project resource is invalid.".to_string(),
                                 ))
                             }
@@ -138,11 +138,11 @@ impl<
                         FHIRRequest::Update(UpdateRequest::Instance(update_request)) => {
                             if let Resource::Project(project) = &update_request.resource {
                                 let fhir_version = match &project.fhirVersion {
-                                    f if f == &SupportedFhirVersion::R4 => {
+                                    f if f == &SupportedFhirVersion::r4() => {
                                         Ok(SupportedFHIRVersions::R4)
                                     }
                                     _ => Err(OperationOutcomeError::fatal(
-                                        IssueType::INVALID,
+                                        IssueType::invalid(),
                                         format!(
                                             "Invalid FHIR Version '{:?}'",
                                             &project.fhirVersion
@@ -161,14 +161,14 @@ impl<
                                     .await?
                                 else {
                                     return Err(OperationOutcomeError::fatal(
-                                        IssueType::NOT_FOUND,
+                                        IssueType::not_found(),
                                         "Project not found.".to_string(),
                                     ));
                                 };
 
                                 if &cur_model.fhir_version != &fhir_version {
                                     return Err(OperationOutcomeError::fatal(
-                                        IssueType::NOT_SUPPORTED,
+                                        IssueType::not_supported(),
                                         "Changing FHIR version of existing project is not supported."
                                             .to_string(),
                                     ));
@@ -176,7 +176,7 @@ impl<
 
                                 if cur_model.system_created {
                                     return Err(OperationOutcomeError::fatal(
-                                        IssueType::NOT_SUPPORTED,
+                                        IssueType::not_supported(),
                                         "Cannot update system created projects.".to_string(),
                                     ));
                                 }
@@ -206,7 +206,7 @@ impl<
                                 Ok(res)
                             } else {
                                 Err(OperationOutcomeError::fatal(
-                                    IssueType::INVALID,
+                                    IssueType::invalid(),
                                     "Project resource is invalid.".to_string(),
                                 ))
                             }
@@ -247,14 +247,14 @@ impl<
                         // Dissallow updates on project because could impact integrity of system. For example project has stored
                         // resources in a specific FHIR version, changing that version would cause issues.
                         _ => Err(OperationOutcomeError::fatal(
-                            IssueType::NOT_SUPPORTED,
+                            IssueType::not_supported(),
                             "Operation is not supported for Project resource types.".to_string(),
                         )),
                     }
                 }
             } else {
                 Err(OperationOutcomeError::fatal(
-                    IssueType::EXCEPTION,
+                    IssueType::exception(),
                     "No next middleware found".to_string(),
                 ))
             }

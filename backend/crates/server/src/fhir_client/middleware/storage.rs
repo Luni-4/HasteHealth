@@ -58,12 +58,15 @@ pub fn to_bundle_entry(
     let mut entry = BundleEntry::default();
 
     if let Some(request_method) = request_method {
-        let http_verb = BoundCode::<HttpVerb>::new(&request_method).unwrap_or(HttpVerb::POST);
+        let http_verb = BoundCode::<HttpVerb>::new(&request_method).unwrap_or(HttpVerb::post());
         entry.request = Some(BundleEntryRequest {
             url: Box::new(FHIRUri {
                 value: match &http_verb {
-                    h if h == &HttpVerb::POST => Some(resource_type.as_ref().to_string()),
-                    h if h == &HttpVerb::DELETE || h == &HttpVerb::PUT || h == &HttpVerb::PATCH => {
+                    h if h == &HttpVerb::post() => Some(resource_type.as_ref().to_string()),
+                    h if h == &HttpVerb::delete()
+                        || h == &HttpVerb::put()
+                        || h == &HttpVerb::patch() =>
+                    {
                         Some(format!("{}/{}", resource_type.as_ref(), id))
                     }
                     _ => None,
@@ -190,7 +193,7 @@ impl<
                             ))))
                         } else {
                             Err(OperationOutcomeError::error(
-                                IssueType::NOT_FOUND,
+                                IssueType::not_found(),
                                 format!("Resource with id '{}' not found", delete_request.id),
                             ))
                         }
@@ -211,7 +214,7 @@ impl<
                             }
                             _ => {
                                 return Err(OperationOutcomeError::fatal(
-                                    IssueType::EXCEPTION,
+                                    IssueType::exception(),
                                     "Invalid delete request type".to_string(),
                                 ));
                             }
@@ -234,7 +237,7 @@ impl<
 
                         if search_results.entries.len() > delete_limit {
                             return Err(OperationOutcomeError::error(
-                                IssueType::INVALID,
+                                IssueType::invalid(),
                                 format!(
                                     "Too many resources to delete at once. Limit to '{}'.",
                                     delete_limit
@@ -263,7 +266,7 @@ impl<
                                 .get_field("id")
                                 .ok_or_else(|| {
                                     OperationOutcomeError::fatal(
-                                        IssueType::INVALID,
+                                        IssueType::invalid(),
                                         "Resource missing id field during deletion.".to_string(),
                                     )
                                 })?
@@ -271,7 +274,7 @@ impl<
                                 .downcast_ref::<String>()
                                 .ok_or_else(|| {
                                     OperationOutcomeError::fatal(
-                                        IssueType::INVALID,
+                                        IssueType::invalid(),
                                         "Resource missing id field during deletion.".to_string(),
                                     )
                                 })?
@@ -298,7 +301,7 @@ impl<
                             ))),
                             _ => {
                                 return Err(OperationOutcomeError::fatal(
-                                    IssueType::EXCEPTION,
+                                    IssueType::exception(),
                                     "Invalid delete request type".to_string(),
                                 ));
                             }
@@ -340,7 +343,7 @@ impl<
                         Ok(Some(FHIRResponse::History(HistoryResponse::Instance(
                             FHIRHistoryInstanceResponse {
                                 bundle: to_bundle(
-                                    BundleType::HISTORY,
+                                    BundleType::history(),
                                     None,
                                     history_resources
                                         .into_iter()
@@ -371,7 +374,7 @@ impl<
                         Ok(Some(FHIRResponse::History(HistoryResponse::Type(
                             FHIRHistoryTypeResponse {
                                 bundle: to_bundle(
-                                    BundleType::HISTORY,
+                                    BundleType::history(),
                                     None,
                                     history_resources
                                         .into_iter()
@@ -402,7 +405,7 @@ impl<
                         Ok(Some(FHIRResponse::History(HistoryResponse::System(
                             FHIRHistorySystemResponse {
                                 bundle: to_bundle(
-                                    BundleType::HISTORY,
+                                    BundleType::history(),
                                     None,
                                     history_resources
                                         .into_iter()
@@ -519,7 +522,7 @@ impl<
 
                                     if latest.is_some() {
                                         return Err(OperationOutcomeError::error(
-                                            IssueType::CONFLICT,
+                                            IssueType::conflict(),
                                             "Resource exists but not found in conditional criteria."
                                                 .to_string(),
                                         ));
@@ -557,7 +560,7 @@ impl<
 
                                 if update_request.resource_type != search_result.resource_type {
                                     return Err(OperationOutcomeError::error(
-                                        IssueType::CONFLICT,
+                                        IssueType::conflict(),
                                         "Resource type mismatch".to_string(),
                                     ));
                                 }
@@ -567,7 +570,7 @@ impl<
                                     .get_field("id")
                                     .ok_or_else(|| {
                                         OperationOutcomeError::error(
-                                            IssueType::INVALID,
+                                            IssueType::invalid(),
                                             "Missing resource ID".to_string(),
                                         )
                                     })?
@@ -580,7 +583,7 @@ impl<
                                         != Some(search_result.id.as_ref())
                                 {
                                     return Err(OperationOutcomeError::error(
-                                        IssueType::CONFLICT,
+                                        IssueType::conflict(),
                                         "Resource ID mismatch".to_string(),
                                     ));
                                 }
@@ -599,7 +602,7 @@ impl<
                                 })))
                             }
                             _ => Err(OperationOutcomeError::error(
-                                IssueType::CONFLICT,
+                                IssueType::conflict(),
                                 "Multiple resources found for conditional update.".to_string(),
                             )),
                         }
@@ -642,7 +645,7 @@ impl<
                         Ok(Some(FHIRResponse::Search(SearchResponse::Type(
                             FHIRSearchTypeResponse {
                                 bundle: to_bundle(
-                                    BundleType::SEARCHSET,
+                                    BundleType::searchset(),
                                     search_results.total,
                                     resources
                                         .into_iter()
@@ -687,7 +690,7 @@ impl<
                         Ok(Some(FHIRResponse::Search(SearchResponse::System(
                             FHIRSearchSystemResponse {
                                 bundle: to_bundle(
-                                    BundleType::SEARCHSET,
+                                    BundleType::searchset(),
                                     search_results.total,
                                     resources
                                         .into_iter()
@@ -743,7 +746,7 @@ impl<
 
                     let repo = Arc::try_unwrap(transaction_repo).map_err(|_e| {
                         OperationOutcomeError::fatal(
-                            IssueType::EXCEPTION,
+                            IssueType::exception(),
                             "Failed to unwrap transaction client".to_string(),
                         )
                     })?;
@@ -760,7 +763,7 @@ impl<
                         Err(operation_error)
                     } else {
                         Err(OperationOutcomeError::fatal(
-                            IssueType::EXCEPTION,
+                            IssueType::exception(),
                             "Unexpected transaction error".to_string(),
                         ))
                     }
@@ -800,7 +803,7 @@ impl<
                         .await?
                     else {
                         return Err(OperationOutcomeError::error(
-                            IssueType::NOT_FOUND,
+                            IssueType::not_found(),
                             format!("Resource with id '{}' not found", fhir_patch_request.id),
                         ));
                     };
@@ -808,7 +811,7 @@ impl<
                     let mut json: serde_json::Value =
                         serde_json::to_value(&resource).map_err(|e| {
                             OperationOutcomeError::fatal(
-                                IssueType::EXCEPTION,
+                                IssueType::exception(),
                                 "Failed to deserialize JSON for patching: ".to_string()
                                     + (e.to_string().as_str()),
                             )
@@ -816,7 +819,7 @@ impl<
 
                     json_patch::patch(&mut json, &fhir_patch_request.patch).map_err(|e| {
                         OperationOutcomeError::fatal(
-                            IssueType::EXCEPTION,
+                            IssueType::exception(),
                             format!("Failed to apply JSON patch: '{}'", e.to_string()),
                         )
                     })?;
@@ -824,7 +827,7 @@ impl<
                     let mut patched_resource =
                         serde_json::from_value::<Resource>(json).map_err(|e| {
                             OperationOutcomeError::fatal(
-                                IssueType::EXCEPTION,
+                                IssueType::exception(),
                                 format!("Failed to deserialize patched resource '{}'.", e),
                             )
                         })?;
@@ -833,7 +836,7 @@ impl<
                         != std::mem::discriminant(&patched_resource)
                     {
                         return Err(OperationOutcomeError::error(
-                            IssueType::CONFLICT,
+                            IssueType::conflict(),
                             "Resource type mismatch after patching".to_string(),
                         ));
                     }
@@ -842,7 +845,7 @@ impl<
                         .get_field("id")
                         .ok_or_else(|| {
                             OperationOutcomeError::error(
-                                IssueType::INVALID,
+                                IssueType::invalid(),
                                 "Missing resource ID".to_string(),
                             )
                         })?
@@ -851,14 +854,14 @@ impl<
                         .cloned()
                         .ok_or_else(|| {
                             OperationOutcomeError::error(
-                                IssueType::INVALID,
+                                IssueType::invalid(),
                                 "Invalid resource ID type".to_string(),
                             )
                         })?;
 
                     if fhir_patch_request.id != patched_id {
                         return Err(OperationOutcomeError::error(
-                            IssueType::CONFLICT,
+                            IssueType::conflict(),
                             "Resource ID mismatch after patching".to_string(),
                         ));
                     }
@@ -878,7 +881,7 @@ impl<
                 }
                 FHIRRequest::Capabilities | FHIRRequest::Invocation(_) => {
                     Err(OperationOutcomeError::error(
-                        IssueType::NOT_SUPPORTED,
+                        IssueType::not_supported(),
                         "Unsupported FHIR operation".to_string(),
                     ))
                 }

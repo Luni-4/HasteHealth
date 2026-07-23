@@ -28,20 +28,20 @@ pub async fn evaluate_policy<
     policy: Arc<AccessPolicyV2>,
 ) -> Result<PermissionLevel, OperationOutcomeError> {
     match &policy.engine {
-        policy_engine if policy_engine == &AccessPolicyv2Engine::FULL_ACCESS => {
+        policy_engine if policy_engine == &AccessPolicyv2Engine::full_access() => {
             Ok(engine::full_access::evaluate(policy.as_ref()))
         }
-        policy_engine if policy_engine == &AccessPolicyv2Engine::RULE_ENGINE => {
+        policy_engine if policy_engine == &AccessPolicyv2Engine::rule_engine() => {
             Ok(engine::rule_engine::pdp::evaluate(context, policy).await?)
         }
-        policy_engine if policy_engine == &AccessPolicyv2Engine::NULL => {
+        policy_engine if policy_engine == &AccessPolicyv2Engine::null() => {
             Err(OperationOutcomeError::fatal(
-                haste_fhir_model::r4::generated::terminology::IssueType::FORBIDDEN,
+                haste_fhir_model::r4::generated::terminology::IssueType::forbidden(),
                 "Access policy denies access.".to_string(),
             ))
         }
         _ => Err(OperationOutcomeError::fatal(
-            haste_fhir_model::r4::generated::terminology::IssueType::INVALID,
+            haste_fhir_model::r4::generated::terminology::IssueType::invalid(),
             "Unsupported policy engine.".to_string(),
         )),
     }
@@ -76,7 +76,7 @@ pub async fn evaluate_policies<
                 PermissionLevel::Allow => {
                     return Arc::into_inner(context).ok_or_else(|| {
                         OperationOutcomeError::error(
-                            IssueType::FORBIDDEN,
+                            IssueType::forbidden(),
                             "Failed to retrieve policy context.".to_string(),
                         )
                     });
@@ -89,7 +89,7 @@ pub async fn evaluate_policies<
     }
 
     Err(OperationOutcomeError::error(
-        IssueType::FORBIDDEN,
+        IssueType::forbidden(),
         format!("No policy has granted access to your request."),
     ))
 }

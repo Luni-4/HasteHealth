@@ -78,21 +78,21 @@ async fn get_concepts(
     codesystem: &CodeSystem,
 ) -> Result<Vec<CodeSystemConcept>, OperationOutcomeError> {
     match &codesystem.content {
-        content_type if content_type == &CodesystemContentMode::NOT_PRESENT => {
+        content_type if content_type == &CodesystemContentMode::not_present() => {
             Err(OperationOutcomeError::error(
-                IssueType::NOT_SUPPORTED,
+                IssueType::not_supported(),
                 "CodeSystem content is 'not-present'".to_string(),
             ))
         }
         content_type
-            if content_type == &CodesystemContentMode::FRAGMENT
-                || content_type == &CodesystemContentMode::COMPLETE
-                || content_type == &CodesystemContentMode::SUPPLEMENT =>
+            if content_type == &CodesystemContentMode::fragment()
+                || content_type == &CodesystemContentMode::complete()
+                || content_type == &CodesystemContentMode::supplement() =>
         {
             Ok(codesystem.concept.clone().unwrap_or_default())
         }
         _ => Err(OperationOutcomeError::error(
-            IssueType::INVALID,
+            IssueType::invalid(),
             "CodeSystem content has invalid value".to_string(),
         )),
     }
@@ -261,7 +261,7 @@ fn expand_valueset<Resolver: CanonicalResolver + Sync + Send + Clone + 'static>(
             })
         } else {
             return Err(OperationOutcomeError::error(
-                IssueType::NOT_FOUND,
+                IssueType::not_found(),
                 "ValueSet could not be resolved".to_string(),
             ));
         }
@@ -283,7 +283,7 @@ impl FHIRTerminology for FHIRCanonicalTerminology {
     ) -> Result<ValueSetValidateCode::Output, OperationOutcomeError> {
         let Some(code) = input.code else {
             return Err(OperationOutcomeError::error(
-                IssueType::INVALID,
+                IssueType::invalid(),
                 "No code provided for validation only support 'code' field validation".to_string(),
             ));
         };

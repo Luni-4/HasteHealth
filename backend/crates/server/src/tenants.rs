@@ -4,7 +4,7 @@ use crate::{
 use haste_fhir_client::FHIRClient;
 use haste_fhir_model::r4::generated::{
     resources::{Project, Resource, ResourceType, User},
-    terminology::IssueType,
+    terminology::{IssueType, SupportedFhirVersion},
     types::FHIRString,
 };
 use haste_fhir_operation_error::OperationOutcomeError;
@@ -115,7 +115,7 @@ pub async fn create_tenant<
                     value: Some(ProjectId::System.to_string()),
                     ..Default::default()
                 }),
-                fhirVersion: haste_fhir_model::r4::generated::terminology::SupportedFhirVersion::R4,
+                fhirVersion: SupportedFhirVersion::r4(),
                 ..Default::default()
             }),
         )
@@ -125,7 +125,7 @@ pub async fn create_tenant<
 
     let Some(user_id) = user.id else {
         return Err(OperationOutcomeError::fatal(
-            IssueType::INVALID,
+            IssueType::invalid(),
             "The user ID is required to complete the tenant creation process.".to_string(),
         ));
     };
@@ -138,7 +138,7 @@ pub async fn create_tenant<
     .await?
     else {
         return Err(OperationOutcomeError::fatal(
-            IssueType::INVALID,
+            IssueType::invalid(),
             "The user does not exist after creation.".to_string(),
         ));
     };
