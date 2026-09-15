@@ -62,7 +62,7 @@ pub async fn mcp_handler<
             let result = operations::initialize(ctx, &initialize_request)?;
             Ok(Json(JSONRPCResult {
                 id: initialize_request.id.clone(),
-                result: ServerResult::Initialize(result),
+                result: ServerResult::Initialize(Box::new(result)),
                 jsonrpc: "2.0".to_string(),
             })
             .into_response())
@@ -90,7 +90,7 @@ pub async fn mcp_handler<
             })
             .into_response())
         }
-        _ => Err(OperationOutcomeError::error(
+        MCPRequest::Ping(_) => Err(OperationOutcomeError::error(
             IssueType::not_supported(),
             "Request not implemented".to_string(),
         )

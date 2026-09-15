@@ -337,7 +337,7 @@ pub struct Tool {
 
 /// Additional properties describing a Tool to clients.
 ///
-/// NOTE: all properties in ToolAnnotations are **hints**. They are not
+/// NOTE: all properties in [`ToolAnnotations`] are **hints**. They are not
 /// guaranteed to provide a faithful description of tool behavior.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ToolAnnotations {
@@ -819,7 +819,7 @@ pub struct ServerCapabilitiesTools {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(untagged)]
 pub enum ServerResult {
-    Initialize(InitializeResult),
+    Initialize(Box<InitializeResult>),
     ListTools(ListToolsResult),
     CallTool(CallToolResult),
     ListResources(ListResourcesResult),
