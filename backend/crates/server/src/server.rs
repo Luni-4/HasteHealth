@@ -192,13 +192,13 @@ async fn public_metadata_handler<
 ///
 /// The router provides endpoints for:
 ///
-/// * FHIR resources and metadata;
-/// * MCP;
-/// * tenant authentication and MFA;
-/// * OIDC and SMART discovery;
-/// * OAuth 2.0 protected-resource discovery;
+/// * `FHIR` resources and metadata;
+/// * `MCP`;
+/// * tenant authentication and `MFA`;
+/// * `OIDC` and `SMART` discovery;
+/// * `OAuth 2.0` protected-resource discovery;
 /// * tenant branding;
-/// * OpenAPI documentation and FHIR schemas; and
+/// * `OpenAPI` documentation and `FHIR` schemas; and
 /// * global authentication endpoints.
 ///
 /// Protected resources are configured with authentication and project-access

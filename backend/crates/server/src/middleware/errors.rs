@@ -20,9 +20,9 @@ pub async fn log_operationoutcome_errors(request: Request, next: Next) -> Respon
     response
 }
 
-/// Middleware to handle OperationOutcomeErrors and return appropriate HTML or FHIR+JSON responses.
+/// Middleware to handle `OperationOutcomeErrors` and return appropriate HTML or FHIR+JSON responses.
 /// If the client accepts HTML, an error page is rendered.
-/// Otherwise, a FHIR OperationOutcome JSON response is returned.
+/// Otherwise, a FHIR `OperationOutcome` JSON response is returned.
 pub async fn operation_outcome_error_handle(
     Cached(TenantContext { tenant, branding }): Cached<TenantContext>,
     request: Request,
@@ -53,14 +53,13 @@ pub async fn operation_outcome_error_handle(
                 &html! {
                     div class ="text-xl font-semibold text-red-600 mb-4" {
                        (issue.as_ref().map(|i| &i.code)
-                            .and_then(|s| s.as_str())
+                            .and_then(haste_fhir_model::r4::generated::terminology::BoundCode::as_str)
                             .unwrap_or("UNKNOWN_ERROR").to_ascii_uppercase())
                     }
                     div class= "text-sm text-red-500" {
                         (issue.as_ref().and_then(|i| i.diagnostics.as_ref())
                             .and_then(|d| d.value.as_ref())
-                            .map(|s| s.as_str())
-                            .unwrap_or("An unexpected error occurred."))
+                            .map_or("An unexpected error occurred.", |s| s.as_str()))
                     }
                 },
                 Some(&branding),

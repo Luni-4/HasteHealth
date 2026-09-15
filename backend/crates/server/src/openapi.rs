@@ -22,7 +22,7 @@ use std::{
 };
 use tokio::sync::Mutex;
 
-/// Cached OpenAPI document. Generated once on first request.
+/// Cached `OpenAPI` document. Generated once on first request.
 static OPENAPI_DOCUMENT: LazyLock<Mutex<Option<OpenAPI>>> = LazyLock::new(|| Mutex::new(None));
 
 /// Cached individual type schemas. Maps resource/complex type name -> JSON
@@ -32,7 +32,7 @@ static OPENAPI_DOCUMENT: LazyLock<Mutex<Option<OpenAPI>>> = LazyLock::new(|| Mut
 static RESOURCE_SCHEMAS: LazyLock<Mutex<Option<HashMap<String, String>>>> =
     LazyLock::new(|| Mutex::new(None));
 
-/// Extract the set of supported resource type names from the loaded StructureDefinitions.
+/// Extract the set of supported resource type names from the loaded [`StructureDefinitions`].
 /// In the current architecture, every loaded resource SD is considered "supported".
 fn get_supported_resource_names(
     sds: &[haste_fhir_model::r4::generated::resources::StructureDefinition],
@@ -83,7 +83,7 @@ fn build_resource_schemas(
         let json_str = serde_json::to_string(&schema).map_err(|_e| {
             OperationOutcomeError::error(
                 IssueType::exception(),
-                format!("Failed to serialize schema for {}", type_name),
+                format!("Failed to serialize schema for {type_name}"),
             )
         })?;
 
@@ -93,7 +93,7 @@ fn build_resource_schemas(
     Ok(schemas)
 }
 
-/// Ensures both the OpenAPI document and individual resource schemas are generated and cached.
+/// Ensures both the `OpenAPI` document and individual resource schemas are generated and cached.
 /// Returns the lock guards for both caches.
 async fn ensure_schemas_generated<
     Repo: Repository + Send + Sync + 'static,
@@ -125,7 +125,7 @@ async fn ensure_schemas_generated<
     let supported_names = get_supported_resource_names(&sds);
 
     // The schema_base_url points to the endpoint that serves individual resource schemas
-    let schema_base_url = format!("{}/schemas/fhir", api_url);
+    let schema_base_url = format!("{api_url}/schemas/fhir");
 
     let openapi_document = haste_openapi_schema_generator::open_api_schema_generator(
         api_url,
@@ -154,7 +154,7 @@ async fn ensure_schemas_generated<
 
 /// Handler for `GET /openapi.json`
 ///
-/// Returns the OpenAPI document with external `$ref`s for resource schemas.
+/// Returns the `OpenAPI` document with external `$ref`s for resource schemas.
 /// The document is generated once and cached for the lifetime of the process.
 pub async fn openapi_document_handler<
     Repo: Repository + Send + Sync + 'static,
@@ -198,7 +198,7 @@ pub struct SchemaPath {
 /// Returns the JSON Schema for a specific FHIR resource type or complex type
 /// (datatype). References to other complex types are external `$ref`s back
 /// into this same endpoint rather than inlined - this is the endpoint both
-/// the main OpenAPI document's `components.schemas` entries and every
+/// the main `OpenAPI` document's `components.schemas` entries and every
 /// schema's own internal `$ref`s point to.
 pub async fn resource_schema_handler<
     Repo: Repository + Send + Sync + 'static,

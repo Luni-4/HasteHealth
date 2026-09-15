@@ -26,7 +26,7 @@ pub struct SecurityHeaderService<S> {
     inner: S,
 }
 
-impl<'a, T> Service<Request<Body>> for SecurityHeaderService<T>
+impl<T> Service<Request<Body>> for SecurityHeaderService<T>
 where
     T: Service<Request, Response = Response> + Send + 'static + Clone,
     T::Future: Send + 'static,

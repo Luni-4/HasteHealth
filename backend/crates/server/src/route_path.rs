@@ -7,14 +7,14 @@ use url::Url;
 
 pub fn tenant_path(tenant: &TenantId) -> PathBuf {
     let mut path = PathBuf::new();
-    path.push(format!("/w/{}", tenant));
+    path.push(format!("/w/{tenant}"));
 
     path
 }
 
 pub fn project_path(tenant: &TenantId, project: &ProjectId) -> PathBuf {
     let mut tenant_path = tenant_path(tenant);
-    tenant_path.push(format!("{}", project));
+    tenant_path.push(format!("{project}"));
 
     tenant_path
 }
