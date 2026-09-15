@@ -97,12 +97,12 @@ impl sqlx::Type<Postgres> for ResourceType {
     }
 }
 
-impl<'r> Encode<'r, Postgres> for ResourceType {
+impl Encode<'_, Postgres> for ResourceType {
     fn encode_by_ref(
         &self,
         buf: &mut PgArgumentBuffer,
     ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
-        buf.write(self.as_ref().as_bytes())?;
+        buf.write_all(self.as_ref().as_bytes())?;
         Ok(sqlx::encode::IsNull::No)
     }
 }
