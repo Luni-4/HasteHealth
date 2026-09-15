@@ -7,8 +7,7 @@ pub fn client_app_header_html(client_app: &ClientApplication) -> Markup {
         .name
         .value
         .as_ref()
-        .map(Cow::Borrowed)
-        .unwrap_or(Cow::Owned("Unnamed Client".to_string()));
+        .map_or(Cow::Owned("Unnamed Client".to_string()), Cow::Borrowed);
 
     html! {
         div class="flex flex-col justify-center items-center text-2xl font-semibold text-gray-900  space-y-2" {
