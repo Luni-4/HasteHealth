@@ -74,7 +74,9 @@ pub async fn create_user<
         .create(ctx, ResourceType::User, Resource::User(user_resource))
         .await?;
 
-    let Resource::User(user) = user else { panic!("Created resource is not a User") };
+    let Resource::User(user) = user else {
+        panic!("Created resource is not a User")
+    };
 
     let user_id = user.id.clone().unwrap();
 
@@ -82,10 +84,11 @@ pub async fn create_user<
         set_user_password(
             &*services.repo,
             tenant,
-             &user
-                 .email
-                 .as_ref()
-                 .and_then(|e| e.value.as_ref()).cloned()
+            &user
+                .email
+                .as_ref()
+                .and_then(|e| e.value.as_ref())
+                .cloned()
                 .unwrap_or_default(),
             &user_id,
             password,

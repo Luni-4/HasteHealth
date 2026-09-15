@@ -1,19 +1,15 @@
 use std::path::Path;
 
-use crate::utilities::{generate::capitalize, load, FHIR_PRIMITIVES, RUST_KEYWORDS};
+use crate::utilities::{FHIR_PRIMITIVES, RUST_KEYWORDS, generate::capitalize, load};
 use haste_fhir_model::r4::generated::{
-    resources::{
-        OperationDefinition, OperationDefinitionParameter, Resource, ResourceType,
-    },
+    resources::{OperationDefinition, OperationDefinitionParameter, Resource, ResourceType},
     terminology::{AllTypes, BoundCode, OperationParameterUse},
 };
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use walkdir::WalkDir;
 
-fn get_operation_definitions(
-    resource: &Resource,
-) -> Result<Vec<&OperationDefinition>, String> {
+fn get_operation_definitions(resource: &Resource) -> Result<Vec<&OperationDefinition>, String> {
     match resource {
         Resource::Bundle(bundle) => Ok(bundle
             .entry
@@ -172,10 +168,7 @@ fn process_field_names(p: &OperationDefinitionParameter) -> (Ident, TokenStream)
     };
 
     let attribute_rename =
-        if formatted_name != *initial_name
-            || replaced_name != *initial_name
-            || is_rust_keyword
-        {
+        if formatted_name != *initial_name || replaced_name != *initial_name || is_rust_keyword {
             quote! {
                 #[parameter_rename = #initial_name]
             }
@@ -186,10 +179,7 @@ fn process_field_names(p: &OperationDefinitionParameter) -> (Ident, TokenStream)
     (field_ident, attribute_rename)
 }
 
-fn format_nested_name(
-    parent_name: &str,
-    parameter: &OperationDefinitionParameter,
-) -> String {
+fn format_nested_name(parent_name: &str, parameter: &OperationDefinitionParameter) -> String {
     let initial_name = parameter
         .name
         .value
@@ -206,9 +196,7 @@ fn format_nested_name(
     format!("{parent_name}{capitalized_parts}")
 }
 
-fn resource_return_tokens(
-    parameters: &[&OperationDefinitionParameter],
-) -> Option<TokenStream> {
+fn resource_return_tokens(parameters: &[&OperationDefinitionParameter]) -> Option<TokenStream> {
     if !is_resource_return(parameters) {
         return None;
     }
@@ -302,15 +290,11 @@ fn generate_parameters(
     generate_parameter_type(name, &parameters, true)
 }
 
-fn generate_output(
-    parameters: &[OperationDefinitionParameter],
-) -> Vec<TokenStream> {
+fn generate_output(parameters: &[OperationDefinitionParameter]) -> Vec<TokenStream> {
     generate_parameters(parameters, &OperationParameterUse::out(), "Output")
 }
 
-fn generate_input(
-    parameters: &[OperationDefinitionParameter],
-) -> Vec<TokenStream> {
+fn generate_input(parameters: &[OperationDefinitionParameter]) -> Vec<TokenStream> {
     generate_parameters(parameters, &OperationParameterUse::in_(), "Input")
 }
 
@@ -346,10 +330,7 @@ impl OperationImports {
     }
 }
 
-fn add_parameter_type(
-    imports: &mut OperationImports,
-    parameter: &OperationDefinitionParameter,
-) {
+fn add_parameter_type(imports: &mut OperationImports, parameter: &OperationDefinitionParameter) {
     if let Some(type_) = parameter.type_.as_ref() {
         let type_name = if type_ == &AllTypes::any() {
             "Resource"
@@ -375,9 +356,7 @@ fn add_parameter_type(
     }
 }
 
-fn collect_imports(
-    parameters: &[OperationDefinitionParameter],
-) -> OperationImports {
+fn collect_imports(parameters: &[OperationDefinitionParameter]) -> OperationImports {
     let mut imports = OperationImports::new();
 
     imports.add_resource("Parameters");
@@ -447,10 +426,7 @@ fn format_documentation(documentation: &str) -> String {
     normalize_canonical_examples(&documentation)
 }
 
-fn normalize_http_operation(
-    documentation: &str,
-    output: &mut String,
-) -> Option<usize> {
+fn normalize_http_operation(documentation: &str, output: &mut String) -> Option<usize> {
     const METHODS: &[&str] = &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"];
 
     let (method, rest) = documentation.split_once(' ')?;
@@ -473,17 +449,11 @@ fn normalize_http_operation(
     Some(operation_end)
 }
 
-fn normalize_table(
-    documentation: &str,
-    output: &mut String,
-) -> Option<usize> {
+fn normalize_table(documentation: &str, output: &mut String) -> Option<usize> {
     let line_end = documentation.find('\n').unwrap_or(documentation.len());
     let line = documentation[..line_end].trim_end();
 
-    if !(line.starts_with('|')
-        && line.ends_with('|')
-        && line.matches('|').count() >= 2)
-    {
+    if !(line.starts_with('|') && line.ends_with('|') && line.matches('|').count() >= 2) {
         return None;
     }
 
@@ -563,18 +533,12 @@ fn normalize_table_cell(cell: &str) -> String {
         position += character.len_utf8();
     }
 
-    let normalized = normalized
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
+    let normalized = normalized.split_whitespace().collect::<Vec<_>>().join(" ");
 
     format!("`{normalized}`")
 }
 
-fn normalize_code_span(
-    documentation: &str,
-    output: &mut String,
-) -> Option<usize> {
+fn normalize_code_span(documentation: &str, output: &mut String) -> Option<usize> {
     if documentation.starts_with("[`") {
         let code_end = documentation[1..].find('`')? + 2;
 
@@ -620,10 +584,7 @@ fn normalize_code_span(
     Some(code_end)
 }
 
-fn normalize_markdown(
-    documentation: &str,
-    output: &mut String,
-) -> Option<usize> {
+fn normalize_markdown(documentation: &str, output: &mut String) -> Option<usize> {
     if !documentation.starts_with('[') {
         return None;
     }
@@ -635,10 +596,7 @@ fn normalize_markdown(
     normalize_quoted_bracket_expression(documentation, output)
 }
 
-fn normalize_markdown_link(
-    documentation: &str,
-    output: &mut String,
-) -> Option<usize> {
+fn normalize_markdown_link(documentation: &str, output: &mut String) -> Option<usize> {
     let end = parse_markdown_link(documentation, 0)?;
 
     let link = &documentation[..end];
@@ -655,9 +613,7 @@ fn normalize_markdown_link(
             .and_then(|(_, target)| target.strip_suffix(')'))
             .unwrap_or_default();
 
-        if !target.starts_with("http://")
-            && !target.starts_with("https://")
-        {
+        if !target.starts_with("http://") && !target.starts_with("https://") {
             let close_bracket = link.find("](")?;
             let text = &link[1..close_bracket];
             let clean_text = strip_markdown_code_ticks(text);
@@ -696,10 +652,7 @@ fn normalize_markdown_link(
     Some(end)
 }
 
-fn normalize_quoted_bracket_expression(
-    documentation: &str,
-    output: &mut String,
-) -> Option<usize> {
+fn normalize_quoted_bracket_expression(documentation: &str, output: &mut String) -> Option<usize> {
     let end = parse_quoted_bracket_expression(documentation, 0)?;
 
     let text = &documentation[2..end - 2];
@@ -711,10 +664,7 @@ fn normalize_quoted_bracket_expression(
     Some(end)
 }
 
-fn normalize_fhir_reference(
-    documentation: &str,
-    output: &mut String,
-) -> Option<usize> {
+fn normalize_fhir_reference(documentation: &str, output: &mut String) -> Option<usize> {
     if !documentation.starts_with("http://hl7.org/fhir/") {
         return None;
     }
@@ -744,10 +694,7 @@ fn normalize_fhir_reference(
     Some(end)
 }
 
-fn normalize_fhir_type_path(
-    documentation: &str,
-    output: &mut String,
-) -> Option<usize> {
+fn normalize_fhir_type_path(documentation: &str, output: &mut String) -> Option<usize> {
     let first = documentation.chars().next()?;
 
     if !first.is_alphabetic() {
@@ -757,9 +704,7 @@ fn normalize_fhir_type_path(
     let identifier_end = find_identifier_end(documentation, 0)?;
     let identifier = &documentation[..identifier_end];
 
-    if !(FHIR_PRIMITIVES.contains_key(identifier)
-        || ResourceType::try_from(identifier).is_ok())
-    {
+    if !(FHIR_PRIMITIVES.contains_key(identifier) || ResourceType::try_from(identifier).is_ok()) {
         return None;
     }
 
@@ -775,10 +720,7 @@ fn normalize_fhir_type_path(
     Some(end)
 }
 
-fn normalize_identifier(
-    documentation: &str,
-    output: &mut String,
-) -> Option<usize> {
+fn normalize_identifier(documentation: &str, output: &mut String) -> Option<usize> {
     let character = documentation.chars().next()?;
 
     if !character.is_alphabetic() {
@@ -790,14 +732,11 @@ fn normalize_identifier(
 
     let mut chars = word.chars();
 
-    let starts_uppercase =
-        chars.next().is_some_and(|c| c.is_ascii_uppercase());
+    let starts_uppercase = chars.next().is_some_and(|c| c.is_ascii_uppercase());
 
-    let has_lowercase =
-        word.chars().any(|c| c.is_ascii_lowercase());
+    let has_lowercase = word.chars().any(|c| c.is_ascii_lowercase());
 
-    let has_internal_uppercase =
-        word.chars().skip(1).any(|c| c.is_ascii_uppercase());
+    let has_internal_uppercase = word.chars().skip(1).any(|c| c.is_ascii_uppercase());
 
     if !(starts_uppercase && has_lowercase && has_internal_uppercase) {
         return None;
@@ -816,9 +755,7 @@ fn normalize_single_quoted_literals(documentation: &str) -> String {
     for line in documentation.split_inclusive('\n') {
         let line_without_newline = line.strip_suffix('\n').unwrap_or(line);
 
-        if line_without_newline.starts_with('|')
-            && line_without_newline.ends_with('|')
-        {
+        if line_without_newline.starts_with('|') && line_without_newline.ends_with('|') {
             output.push_str(line);
             continue;
         }
@@ -831,9 +768,7 @@ fn normalize_single_quoted_literals(documentation: &str) -> String {
                 continue;
             }
 
-            let Some((end, _)) =
-                chars.find(|(_, character)| *character == '\'')
-            else {
+            let Some((end, _)) = chars.find(|(_, character)| *character == '\'') else {
                 break;
             };
 
@@ -841,16 +776,12 @@ fn normalize_single_quoted_literals(documentation: &str) -> String {
 
             let is_simple_literal = !value.is_empty()
                 && value.chars().all(|character| {
-                    character.is_ascii_alphanumeric()
-                        || character == '_'
-                        || character == '-'
+                    character.is_ascii_alphanumeric() || character == '_' || character == '-'
                 });
 
-            let preceded_by_pipe =
-                start > 0 && line.as_bytes()[start - 1] == b'|';
+            let preceded_by_pipe = start > 0 && line.as_bytes()[start - 1] == b'|';
 
-            let followed_by_pipe =
-                end + 1 < line.len() && line.as_bytes()[end + 1] == b'|';
+            let followed_by_pipe = end + 1 < line.len() && line.as_bytes()[end + 1] == b'|';
 
             if is_simple_literal || (preceded_by_pipe && followed_by_pipe) {
                 output.push_str(&line[last..start]);
@@ -878,8 +809,7 @@ fn normalize_canonical_examples(documentation: &str) -> String {
 
     let url_start = start + PREFIX.len();
 
-    let Some(relative_url_start) = documentation[url_start..].find(URL_PREFIX)
-    else {
+    let Some(relative_url_start) = documentation[url_start..].find(URL_PREFIX) else {
         return documentation.to_string();
     };
 
@@ -891,11 +821,7 @@ fn normalize_canonical_examples(documentation: &str) -> String {
 
     let mut value_end = url_end;
 
-    if documentation
-        .as_bytes()
-        .get(value_end.wrapping_sub(1))
-        == Some(&b'.')
-    {
+    if documentation.as_bytes().get(value_end.wrapping_sub(1)) == Some(&b'.') {
         value_end -= 1;
     }
 
@@ -924,32 +850,25 @@ fn find_fhir_path_end(documentation: &str) -> Option<usize> {
         .char_indices()
         .skip(1)
         .find(|(_, character)| {
-            !(character.is_ascii_alphanumeric()
-                || *character == '.'
-                || *character == '_')
+            !(character.is_ascii_alphanumeric() || *character == '.' || *character == '_')
         })
         .map_or(documentation.len(), |(offset, _)| offset);
 
     (end > 1).then_some(end)
 }
 
-fn parse_markdown_link(
-    documentation: &str,
-    start: usize,
-) -> Option<usize> {
+fn parse_markdown_link(documentation: &str, start: usize) -> Option<usize> {
     if !documentation[start..].starts_with('[') {
         return None;
     }
 
-    let close_bracket =
-        find_unescaped_character(documentation, start + 1, ']')?;
+    let close_bracket = find_unescaped_character(documentation, start + 1, ']')?;
 
     if documentation.as_bytes().get(close_bracket + 1) != Some(&b'(') {
         return None;
     }
 
-    let close_paren =
-        find_unescaped_character(documentation, close_bracket + 2, ')')?;
+    let close_paren = find_unescaped_character(documentation, close_bracket + 2, ')')?;
 
     Some(close_paren + 1)
 }
@@ -959,25 +878,17 @@ fn strip_markdown_code_ticks(text: &str) -> &str {
 
     if text.len() >= 4 && text.starts_with("``") && text.ends_with("``") {
         &text[2..text.len() - 2]
-    } else if text.len() >= 2
-        && text.starts_with('`')
-        && text.ends_with('`')
-    {
+    } else if text.len() >= 2 && text.starts_with('`') && text.ends_with('`') {
         &text[1..text.len() - 1]
     } else {
         text
     }
 }
 
-fn parse_quoted_bracket_expression(
-    documentation: &str,
-    start: usize,
-) -> Option<usize> {
+fn parse_quoted_bracket_expression(documentation: &str, start: usize) -> Option<usize> {
     let bytes = documentation.as_bytes();
 
-    if bytes.get(start) != Some(&b'[')
-        || bytes.get(start + 1) != Some(&b'\'')
-    {
+    if bytes.get(start) != Some(&b'[') || bytes.get(start + 1) != Some(&b'\'') {
         return None;
     }
 
@@ -992,22 +903,13 @@ fn parse_quoted_bracket_expression(
     Some(quote_end + 2)
 }
 
-fn find_unescaped_character(
-    documentation: &str,
-    start: usize,
-    target: char,
-) -> Option<usize> {
+fn find_unescaped_character(documentation: &str, start: usize, target: char) -> Option<usize> {
     documentation[start..]
         .char_indices()
-        .find_map(|(offset, character)| {
-            (character == target).then_some(start + offset)
-        })
+        .find_map(|(offset, character)| (character == target).then_some(start + offset))
 }
 
-fn find_identifier_end(
-    documentation: &str,
-    start: usize,
-) -> Option<usize> {
+fn find_identifier_end(documentation: &str, start: usize) -> Option<usize> {
     let mut end = start;
 
     for (offset, character) in documentation[start..].char_indices() {
@@ -1041,10 +943,7 @@ fn generate_doc_attributes(documentation: &str) -> TokenStream {
     }
 }
 
-fn wrap_documentation_line(
-    line: &str,
-    width: usize,
-) -> Vec<String> {
+fn wrap_documentation_line(line: &str, width: usize) -> Vec<String> {
     if line.is_empty() {
         return vec![String::new()];
     }
@@ -1091,9 +990,7 @@ fn wrap_documentation_line(
 /* Operation generation                                                       */
 /* ------------------------------------------------------------------------- */
 
-fn generate_operation_definition(
-    file_path: &Path,
-) -> Result<TokenStream, String> {
+fn generate_operation_definition(file_path: &Path) -> Result<TokenStream, String> {
     let resource = load::load_from_file(file_path)?;
     let op_defs = get_operation_definitions(&resource)?;
 
@@ -1117,17 +1014,13 @@ fn generate_operation_definition(
             .map(format_documentation)
             .unwrap_or_default();
 
-        let operation_doc_attributes =
-            generate_doc_attributes(&operation_description);
+        let operation_doc_attributes = generate_doc_attributes(&operation_description);
 
         let mut imports = collect_imports(parameters);
 
-        if name == "ActivityDefinitionDataRequirements"
-            || name == "PlanDefinitionDataRequirements"
+        if name == "ActivityDefinitionDataRequirements" || name == "PlanDefinitionDataRequirements"
         {
-            imports
-                .types
-                .retain(|ident| ident != "FHIRString");
+            imports.types.retain(|ident| ident != "FHIRString");
         }
 
         let generated_input = generate_input(parameters);
@@ -1182,25 +1075,17 @@ fn generate_operation_definition(
 ///
 /// Returns an error if an operation definition cannot be generated from one of
 /// the input files.
-pub fn generate_operation_definitions_from_files(
-    file_paths: &[String],
-) -> Result<String, String> {
+pub fn generate_operation_definitions_from_files(file_paths: &[String]) -> Result<String, String> {
     let mut generated_code = quote! {
         #![allow(non_snake_case)]
     };
 
     for dir_path in file_paths {
-        let walker = WalkDir::new(dir_path)
-            .sort_by_file_name()
-            .into_iter();
+        let walker = WalkDir::new(dir_path).sort_by_file_name().into_iter();
 
         for entry in walker
             .filter_map(std::result::Result::ok)
-            .filter(|entry| {
-                entry
-                    .metadata()
-                    .is_ok_and(|metadata| metadata.is_file())
-            })
+            .filter(|entry| entry.metadata().is_ok_and(|metadata| metadata.is_file()))
             .filter(|entry| {
                 entry
                     .path()
@@ -1208,8 +1093,7 @@ pub fn generate_operation_definitions_from_files(
                     .is_some_and(|extension| extension == "json")
             })
         {
-            let generated_types =
-                generate_operation_definition(entry.path())?;
+            let generated_types = generate_operation_definition(entry.path())?;
 
             generated_code = quote! {
                 #generated_code

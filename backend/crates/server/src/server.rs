@@ -181,9 +181,59 @@ async fn public_metadata_handler<
         .capabilities(ctx)
         .await
         .map(|capabilities| FHIRResponse::Capabilities(FHIRCapabilitiesResponse { capabilities }))
-        .map(|fhir_response| fhir_response.into_response())
+        .map(axum::response::IntoResponse::into_response)
 }
 
+/// Builds the application HTTP server.
+///
+/// Initializes the shared server services and session store, configures the
+/// application's HTTP routes and middleware, and returns the resulting Axum
+/// router with trailing-slash normalization enabled.
+///
+/// The router provides endpoints for:
+///
+/// * FHIR resources and metadata;
+/// * MCP;
+/// * tenant authentication and MFA;
+/// * OIDC and SMART discovery;
+/// * OAuth 2.0 protected-resource discovery;
+/// * tenant branding;
+/// * OpenAPI documentation and FHIR schemas; and
+/// * global authentication endpoints.
+///
+/// Protected resources are configured with authentication and project-access
+/// middleware. Public endpoints such as SMART configuration and, when
+/// enabled, FHIR metadata are configured separately so they do not inherit
+/// authentication requirements intended for protected resources.
+///
+/// The application also configures global middleware for panic handling,
+/// client IP extraction, Sentry integration, request tracing, request body
+/// limits, compression, security headers, API version headers, sessions, and
+/// CORS.
+///
+/// # Arguments
+///
+/// * `config` - Shared server configuration controlling database connections,
+///   authentication, monitoring, security, request limits, and other server
+///   behavior.
+///
+/// # Returns
+///
+/// Returns the configured [`NormalizePath`] router ready to be served by an
+/// HTTP listener.
+///
+/// # Errors
+///
+/// Returns [`OperationOutcomeError`] if:
+///
+/// * the session store migration fails; or
+/// * the shared server services cannot be initialized.
+///
+/// # Panics
+///
+/// Panics if a required static asset route cannot be represented as a valid
+/// UTF-8 string. Initialization of the underlying database pool may also
+/// panic if the pool cannot be established.
 pub async fn server(
     config: Arc<ServerConfig>,
 ) -> Result<NormalizePath<Router>, OperationOutcomeError> {
@@ -329,10 +379,31 @@ pub async fn server(
     Ok(NormalizePathLayer::trim_trailing_slash().layer(app))
 }
 
+/// Starts the HTTP server and serves requests on the specified port.
+///
+/// Initializes the application server from the provided configuration, binds
+/// a TCP listener to all network interfaces on the specified port, and serves
+/// the application using Axum. Client connection information is made available
+/// to the application through [`SocketAddr`] connect information.
+///
+/// # Arguments
+///
+/// * `config` - Shared server configuration used to initialize the application.
+/// * `port` - TCP port on which the HTTP server listens.
+///
+/// # Errors
+///
+/// Returns [`OperationOutcomeError`] if the application server cannot be
+/// initialized.
+///
+/// # Panics
+///
+/// Panics if the TCP listener cannot be bound to the requested address, or if
+/// the Axum server terminates with an error.
 pub async fn serve(config: Arc<ServerConfig>, port: u16) -> Result<(), OperationOutcomeError> {
     let server = server(config).await?;
 
-    let addr = format!("0.0.0.0:{}", port);
+    let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
     tracing::info!("Server started");

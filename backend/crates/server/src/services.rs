@@ -21,6 +21,29 @@ use tracing::info;
 
 // Singleton for the database connection pool in postgres.
 static POOL: OnceCell<Pool<Postgres>> = OnceCell::const_new();
+/// Returns the shared PostgreSQL connection pool.
+///
+/// Initializes the global connection pool on first use using the PostgreSQL
+/// configuration from `config`. Subsequent calls return the same pool.
+///
+/// The pool is configured with the maximum number of connections specified by
+/// [`Postgres`]. Database connection establishment is performed
+/// asynchronously and is shared across all callers.
+///
+/// # Arguments
+///
+/// * `config` - Server configuration containing the PostgreSQL connection
+///   settings.
+///
+/// # Returns
+///
+/// Returns a reference to the lazily initialized global PostgreSQL connection
+/// pool.
+///
+/// # Panics
+///
+/// Panics if the PostgreSQL connection pool cannot be created or the database
+/// connection cannot be established.
 pub async fn get_pool(config: &ServerConfig) -> &'static Pool<Postgres> {
     match &config.repo {
         crate::config::RepoConfig::Postgres(pg_config) => {
@@ -82,6 +105,26 @@ impl<
     Terminology: FHIRTerminology + Send + Sync + 'static,
 > ServerState<Repo, Search, Terminology>
 {
+    /// Creates a transactional copy of the server state.
+    ///
+    /// Starts a new database transaction and returns a [`ServerState`] configured
+    /// to use the transactional repository. The returned FHIR client is also
+    /// configured with the transactional repository while sharing the existing
+    /// search engine, terminology service, configuration, rate limiter, secret
+    /// provider, and Deno operation executor pool.
+    ///
+    /// This allows operations performed through the returned server state to
+    /// participate in the same database transaction.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new [`ServerState`] whose repository and FHIR client operate
+    /// within the newly created transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OperationOutcomeError`] if the underlying repository fails to
+    /// start a transaction.
     pub async fn transaction(&self) -> Result<Self, OperationOutcomeError> {
         self.repo.transaction(true).await.map(|tx_repo| {
             let tx_repo = Arc::new(tx_repo);
@@ -103,6 +146,20 @@ impl<
         })
     }
 
+    /// Commits the current transaction.
+    ///
+    /// Consumes the transaction state to ensure that no further operations can be
+    /// performed through it after the commit has been initiated. The underlying
+    /// repository is unwrapped and committed once all other references to the
+    /// transaction repository have been released.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OperationOutcomeError`] if:
+    ///
+    /// * the transaction repository cannot be uniquely unwrapped because other
+    ///   references to it still exist; or
+    /// * committing the underlying repository fails.
     pub async fn commit(self) -> Result<(), OperationOutcomeError> {
         let repo = self.repo.clone();
         drop(self);
@@ -205,6 +262,41 @@ async fn create_search_engine(
     }
 }
 
+/// Creates and initializes the shared server services.
+///
+/// Initializes the PostgreSQL connection pool, FHIR terminology service,
+/// search engine, embedded Deno operation executor pool, and FHIR server
+/// client. These services are assembled into a shared [`ServerState`] that
+/// can be safely shared across requests.
+///
+/// The embedded Deno pool is created once as part of the shared state rather
+/// than per request, since creating multiple pools is expensive and may
+/// exhaust system resources.
+///
+/// # Arguments
+///
+/// * `config` - Shared server configuration used to initialize the database,
+///   search engine, FHIR client, operation executor, and security services.
+///
+/// # Returns
+///
+/// Returns an [`Arc<ServerState>`] containing the initialized server
+/// services.
+///
+/// # Errors
+///
+/// Returns [`OperationOutcomeError`] if:
+///
+/// * the search engine cannot be initialized; or
+/// * the configured encryption secret provider is not supported.
+///
+/// Currently, only the environment-based [`SecretProviderConfig`] is
+/// supported. Configurations using another secret provider result in a
+/// fatal `exception` operation outcome.
+///
+/// # Panics
+///
+/// Panics if the embedded Deno operation executor pool cannot be created.
 pub async fn create_services(
     config: Arc<crate::config::ServerConfig>,
 ) -> Result<
